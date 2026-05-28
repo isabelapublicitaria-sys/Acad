@@ -343,7 +343,19 @@ input[type=text]{width:155px}
           <option value="norte">Norte</option><option value="nordeste">Nordeste</option>
           <option value="centro">Centro-Oeste</option><option value="sudeste">Sudeste</option><option value="sul">Sul</option>
         </select>
-        <input type="text" id="cct-search" placeholder="Buscar estado..." oninput="renderCCTs()" style="width:150px">
+        <select id="cct-disp" onchange="renderCCTs()">
+          <option value="">Todos</option>
+          <option value="com">Com CCT publicada</option>
+          <option value="sem">Sem CCT publicada</option>
+        </select>
+        <select id="cct-ano-f" onchange="renderCCTs()">
+          <option value="">Todos os anos</option>
+          <option value="2026">2026</option>
+          <option value="2025">2025</option>
+          <option value="2024">2024</option>
+          <option value="2023">2023</option>
+        </select>
+        <input type="text" id="cct-search" placeholder="Buscar estado..." oninput="renderCCTs()" style="width:140px">
       </div>
     </div>
     <div class="cct-wrap" id="cct-wrap"><div class="loading-txt" style="padding:2rem">Carregando CCTs...</div></div>
@@ -833,17 +845,25 @@ function renderCCTs(){
     ...DATA.negociacoes.map(n=>n.uf)
   ]);
 
+  // Anos disponíveis — precisa ser declarado antes do filter
+  const anosDisp=[...new Set(DATA.ccts.map(c=>c.ano))].sort((a,b)=>b-a);
+
+  const dispF  = (document.getElementById('cct-disp') ||{}).value||'';
+  const anoFCCT= (document.getElementById('cct-ano-f')||{}).value||'';
+
   const list=ESTADOS.filter(e=>{
     if(regF&&e.reg!==regF)return false;
     if(srch&&!e.nome.toLowerCase().includes(srch)&&!e.uf.toLowerCase().includes(srch))return false;
-    return ufsComDados.has(e.uf);
+    if(!ufsComDados.has(e.uf))return false;
+    // Filtro por disponibilidade de CCT
+    const anoRef = anoFCCT ? parseInt(anoFCCT) : (anosDisp[0]||currentYear);
+    const temCCT = DATA.ccts.some(c=>c.uf===e.uf&&c.ano===anoRef&&c.link_cct);
+    if(dispF==='com' && !temCCT) return false;
+    if(dispF==='sem' && temCCT)  return false;
+    return true;
   });
 
   if(!list.length){wrap.innerHTML='<div class="empty">Nenhum estado encontrado.</div>';return;}
-
-  // Anos disponíveis — pegar do banco (só anos com dados)
-  const anosDisp=[...new Set(DATA.ccts.map(c=>c.ano))].sort((a,b)=>b-a);
-  if(!anosDisp.includes(currentYear)&&anosDisp.length) cctAnoAtivo=anosDisp[0];
 
   wrap.innerHTML=list.map(e=>{
     const uf=e.uf;
