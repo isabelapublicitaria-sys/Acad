@@ -867,22 +867,36 @@ function renderCCTs(){
     const anoAtivo=anosParaAba[0];
     const bodyHtml=renderCCTAnoBody(uf,anoAtivo,grupos);
 
+    // Pegar último reajuste disponível para mostrar no cabeçalho
+    const ultimoAno=anosParaAba[0];
+    const ultimasCCTs=DATA.ccts.filter(c=>c.uf===uf&&c.ano===ultimoAno);
+    const pctChips=ultimasCCTs.filter(c=>c.pct).map(c=>{
+      const abLabel={'todas':'','ef':' EF','adm':' ADM'}[c.abrangencia||'todas']||'';
+      return`<span class="pct-chip" style="font-size:11px">${c.pct}%${abLabel}</span>`;
+    }).join('');
+
     return`<div class="cct-block" id="cct-state-${uf}">
-      <div class="cct-head" onclick="toggleCCT('${uf}')">
-        <div class="cct-head-left">
-          <div class="cct-nome">${e.nome} <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-2);font-weight:400">${uf}</span></div>
-          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:3px">
+      <div class="cct-head" onclick="toggleCCT('${uf}')" style="cursor:pointer">
+        <div class="cct-head-left" style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <div class="cct-nome">${e.nome} <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-2);font-weight:400">${uf}</span></div>
+            ${pctChips}
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
             ${grupos.map(g=>{
               const abLabel={'todas':'Todas as funções','ef':'Educ. Física','adm':'Administrativo'}[g.abrangencia||'todas']||g.abrangencia;
               const sl=g.sind_lab_id?getSind(g.sind_lab_id):null;
               const sp=g.sind_pat_id?getSind(g.sind_pat_id):null;
-              return`<span style="font-size:10px;color:var(--text-3);background:var(--bg-2);padding:1px 7px;border-radius:4px;border:0.5px solid var(--border)">
-                ${sl?sl.sigla||sl.nome:'?'} × ${sp?sp.sigla||sp.nome:'?'} — ${abLabel}
-              </span>`;
+              return`<div style="display:flex;align-items:center;gap:4px;background:var(--bg-2);border:0.5px solid var(--border);border-radius:6px;padding:3px 8px">
+                ${sl?`<span style="font-size:11px;font-weight:600;color:var(--brand-dark)">${sl.sigla||sl.nome}</span>`:'<span style="font-size:11px;color:var(--text-3)">?</span>'}
+                <span style="font-size:10px;color:var(--text-3)">×</span>
+                ${sp?`<span style="font-size:11px;font-weight:600;color:var(--text-2)">${sp.sigla||sp.nome}</span>`:'<span style="font-size:11px;color:var(--text-3)">?</span>'}
+                <span style="font-size:9px;color:var(--text-3);margin-left:2px;padding-left:4px;border-left:0.5px solid var(--border)">${abLabel}</span>
+              </div>`;
             }).join('')}
           </div>
         </div>
-        <div class="cct-toggle" id="tog-${uf}">›</div>
+        <div class="cct-toggle" id="tog-${uf}" style="font-size:18px;color:var(--text-3);flex-shrink:0">›</div>
       </div>
       <div class="cct-body" id="body-${uf}">
         <div style="display:flex;gap:6px;padding:12px 16px 0;flex-wrap:wrap">
