@@ -1091,6 +1091,58 @@ ESTADOS.forEach(e=>{
   });
 });
 
+// ════════════ SINDICATOS ════════════
+function renderSind(){
+  const ufF    = (document.getElementById('s-uf')    ||{}).value||'';
+  const tipoF  = (document.getElementById('s-tipo')  ||{}).value||'';
+  const abrangF= (document.getElementById('s-abrang')||{}).value||'';
+  const srch   = ((document.getElementById('s-search')||{}).value||'').toLowerCase();
+  const wrap   = document.getElementById('sind-wrap');
+  if(!wrap) return;
+
+  const list = DATA.sindicatos.filter(s=>{
+    if(ufF    && s.uf       !== ufF)    return false;
+    if(tipoF  && s.tipo     !== tipoF)  return false;
+    if(abrangF&& s.abrangencia !== abrangF) return false;
+    if(srch   && !(s.nome||'').toLowerCase().includes(srch)
+              && !(s.sigla||'').toLowerCase().includes(srch)) return false;
+    return true;
+  });
+
+  if(!list.length){
+    wrap.innerHTML='<div class="empty">Nenhum sindicato encontrado.</div>';
+    return;
+  }
+
+  const TIPO_BADGE = {laboral:'b-neg', patronal:'b-warn'};
+  const ABRANG_LABEL = {todas:'Todas as funções', ef:'Educ. Física', adm:'Administrativo'};
+
+  wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead>
+      <tr style="border-bottom:1px solid var(--border)">
+        <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3)">Sigla</th>
+        <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3)">Nome</th>
+        <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3)">UF</th>
+        <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3)">Tipo</th>
+        <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3)">Abrangência</th>
+        <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3)">CNPJ</th>
+        <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3)">Contato</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${list.map(s=>`<tr style="border-bottom:0.5px solid var(--border)" onmouseover="this.style.background='var(--bg-2)'" onmouseout="this.style.background=''">
+        <td style="padding:8px 12px;font-weight:600">${s.sigla||'—'}</td>
+        <td style="padding:8px 12px;color:var(--text-2);max-width:220px">${s.nome||'—'}</td>
+        <td style="padding:8px 12px"><span style="font-size:10px;font-weight:700;background:var(--bg-2);padding:2px 6px;border-radius:4px">${s.uf||'—'}</span></td>
+        <td style="padding:8px 12px"><span class="badge ${TIPO_BADGE[s.tipo]||'b-gray'}" style="font-size:10px">${s.tipo||'—'}</span></td>
+        <td style="padding:8px 12px;font-size:11px;color:var(--text-2)">${ABRANG_LABEL[s.abrangencia]||s.abrangencia||'—'}</td>
+        <td style="padding:8px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-3)">${s.cnpj||'—'}</td>
+        <td style="padding:8px 12px;font-size:11px;color:var(--text-2)">${[s.telefone,s.email].filter(Boolean).join(' · ')||'—'}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
 // ════════════ LISTA DE ASSEMBLEIAS ════════════
 function renderCalList(){
   const viagemF = document.getElementById('cal-list-viagem')?.value || '';
