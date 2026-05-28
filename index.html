@@ -1240,6 +1240,97 @@ window.irParaCCT = function(uf){
   }, 300);
 };
 
+// ════════════ ENCONTROS ACAD ════════════
+function renderEncontros(){
+  const anoFil = document.getElementById('enc-ano')?.value||'';
+  const mesFil = document.getElementById('enc-mes')?.value||'';
+  const stFil  = document.getElementById('enc-status-f')?.value||'';
+  const wrap   = document.getElementById('enc-wrap');
+  if(!wrap) return;
+
+  const list = DATA.encontros.filter(e=>{
+    const parts = e.data_iso.split('-');
+    const ano = parseInt(parts[0]);
+    const mes = parseInt(parts[1]);
+    if(anoFil && ano !== parseInt(anoFil)) return false;
+    if(mesFil && mes !== parseInt(mesFil)) return false;
+    if(stFil  && e.status !== stFil)       return false;
+    return true;
+  });
+
+  if(!list.length){
+    wrap.innerHTML='<div class="empty">Nenhum encontro encontrado.</div>';
+    return;
+  }
+
+  // Agrupar por mês/ano
+  const grupos = {};
+  list.forEach(e=>{
+    const [y,m] = e.data_iso.split('-');
+    const chave = `${y}-${m}`;
+    if(!grupos[chave]) grupos[chave]=[];
+    grupos[chave].push(e);
+  });
+
+  const MESES=['','Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const ST_BADGE = {realizado:'b-ok', cancelado:'b-red', pendente:'b-warn'};
+  const ST_LABEL = {realizado:'Realizado', cancelado:'Cancelado', pendente:'Pendente'};
+
+  const resumosMesMap = {};
+  (DATA.resumosMes||[]).forEach(r=>{ resumosMesMap[r.mes_ano]=r.link; });
+
+  wrap.innerHTML = Object.keys(grupos).sort((a,b)=>b.localeCompare(a)).map(chave=>{
+    const [y,m] = chave.split('-');
+    const titulo = `${MESES[parseInt(m)]}/${y}`;
+    const resumoLink = resumosMesMap[titulo]||resumosMesMap[`${MESES[parseInt(m)]}/${y}`]||'';
+    const rows = grupos[chave].map(e=>{
+      const [ey,em,ed] = e.data_iso.split('-');
+      const dateStr = `${ed}/${em}/${ey}`;
+      const ataLink = e.link_ata
+        ? `<a href="${e.link_ata}" target="_blank" class="lbtn" style="font-size:11px">Ata ↗</a>` : '';
+      return `<tr style="border-bottom:0.5px solid var(--border)">
+        <td style="padding:8px 12px;font-family:'JetBrains Mono',monospace;font-size:12px;white-space:nowrap">${dateStr}</td>
+        <td style="padding:8px 12px"><span class="badge ${ST_BADGE[e.status||'pendente']}" style="font-size:10px">${ST_LABEL[e.status||'pendente']}</span></td>
+        <td style="padding:8px 12px;font-size:12px;color:var(--text-2)">${e.obs||''}</td>
+        <td style="padding:8px 12px">${ataLink}</td>
+      </tr>`;
+    }).join('');
+    return `<div class="enc-card" style="margin-bottom:16px;border:0.5px solid var(--border);border-radius:8px;overflow:hidden">
+      <div style="padding:10px 14px;background:var(--bg-2);border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:13px;font-weight:600">${titulo}</div>
+        ${resumoLink?`<a href="${resumoLink}" target="_blank" class="lbtn" style="font-size:11px">Resumo do mês ↗</a>`:''}
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--bg)">
+          <th style="padding:6px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-3)">Data</th>
+          <th style="padding:6px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-3)">Status</th>
+          <th style="padding:6px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-3)">Observação</th>
+          <th style="padding:6px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-3)">Ata</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+}
+
+// ════════════ TOGGLE CCT ════════════
+window.toggleCCT = function(uf){
+  const body = document.getElementById('body-'+uf);
+  const tog  = document.getElementById('tog-'+uf);
+  if(!body) return;
+  const isOpen = body.classList.toggle('open');
+  if(tog) tog.classList.toggle('open', isOpen);
+};
+
+window.toggleCCTById = function(bodyId, togId){
+  const body = document.getElementById(bodyId);
+  const tog  = document.getElementById(togId);
+  if(!body) return;
+  const isOpen = body.classList.toggle('open');
+  if(tog) tog.classList.toggle('open', isOpen);
+};
+
 // Expor funções de render para o HTML (necessário em type="module")
 window.renderDash       = renderDash;
 window.renderCalList    = renderCalList;
