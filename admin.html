@@ -881,7 +881,12 @@ window.loadCCTForm=async function(idOverride){
     row=data;if(row)document.getElementById('ca-uf').value=row.uf;
   } else {
     if(!uf)return;
-    const {data}=await sb.from('pisos').select('*').eq('ano',ano).eq('uf',uf).maybeSingle();
+    const abrang=getVal('cf-abrang')||'todas';
+    const tipo=getVal('cf-tipo')||'Estado';
+    const grupo=getVal('cf-grupo')||'principal';
+    const {data}=await sb.from('pisos').select('*')
+      .eq('ano',ano).eq('uf',uf).eq('abrangencia',abrang).eq('tipo',tipo).eq('grupo',grupo)
+      .maybeSingle();
     row=data;
   }
   populateSindSelects(['cf-sind-lab','cf-sind-pat']);
