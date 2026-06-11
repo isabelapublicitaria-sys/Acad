@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Monitor Sindical ACAD</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --brand:#1B4FD8;--brand-light:#EEF2FF;--brand-dark:#1338A8;
+  --green:#15803D;--green-bg:#DCFCE7;--green-tx:#14532D;
+  --amber:#B45309;--amber-bg:#FEF3C7;--amber-tx:#78350F;
+  --red:#B91C1C;--red-bg:#FEE2E2;--red-tx:#7F1D1D;
+  --purple:#7C3AED;--purple-bg:#EDE9FE;--purple-tx:#4C1D95;
+  --teal:#0F766E;--teal-bg:#CCFBF1;--teal-tx:#134E4A;
+  --orange:#C2410C;--orange-bg:#FFEDD5;--orange-tx:#7C2D12;
+  --bg:#F8F9FC;--surface:#FFF;
+  --border:rgba(0,0,0,0.08);--border-md:rgba(0,0,0,0.13);
+  --text:#111827;--text-2:#6B7280;--text-3:#9CA3AF;
+  --r:8px;--rl:12px;
+  --shadow:0 1px 3px rgba(0,0,0,0.07),0 1px 2px rgba(0,0,0,0.05);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+a{color:var(--brand);text-decoration:none}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:228px;flex-shrink:0;background:var(--surface);border-right:0.5px solid var(--border-md);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-logo{padding:16px 16px 12px;border-bottom:0.5px solid var(--border)}
+.brand{font-size:13px;font-weight:600;color:var(--brand);letter-spacing:-.01em}
+.sub-logo{font-size:11px;font-weight:600;color:var(--amber);margin-top:1px}
+.sidebar-nav{padding:8px;flex:1}
+.nav-label{font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;padding:8px 8px 4px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r);cursor:pointer;color:var(--text-2);font-size:13px;transition:all .12s;border:none;background:none;width:100%;text-align:left;font-family:inherit}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:var(--brand-light);color:var(--brand);font-weight:500}
+.sidebar-footer{padding:12px;border-top:0.5px solid var(--border)}
+.main{flex:1;min-width:0;overflow-y:auto}
+.topbar{background:var(--surface);border-bottom:0.5px solid var(--border-md);padding:12px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.page-title{font-size:15px;font-weight:600;flex:1}
+.badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap;display:inline-block}
+.b-neg{background:var(--brand-light);color:var(--brand-dark)}.b-ok{background:var(--green-bg);color:var(--green-tx)}
+.b-warn{background:var(--amber-bg);color:var(--amber-tx)}.b-gray{background:#F3F4F6;color:#374151}
+.b-red{background:var(--red-bg);color:var(--red-tx)}.b-teal{background:var(--teal-bg);color:var(--teal-tx)}
+select,input[type=text],input[type=email],input[type=password],input[type=date],input[type=url],input[type=time],textarea{
+  font-family:inherit;font-size:13px;padding:7px 10px;border:0.5px solid var(--border-md);
+  border-radius:var(--r);background:var(--bg);color:var(--text);outline:none;width:100%}
+select:focus,input:focus,textarea:focus{border-color:var(--brand);background:var(--surface)}
+textarea{resize:vertical;min-height:65px}
+.btn{font-family:inherit;font-size:13px;font-weight:600;padding:8px 16px;border-radius:var(--r);cursor:pointer;border:none;transition:all .12s}
+.btn-primary{background:var(--brand);color:#fff}.btn-primary:hover{background:var(--brand-dark)}
+.btn-success{background:var(--green);color:#fff}
+.btn-ghost{background:transparent;border:0.5px solid var(--border-md);color:var(--text-2)}.btn-ghost:hover{background:var(--bg)}
+.btn-danger{background:var(--red-bg);color:var(--red-tx);border:0.5px solid}
+.btn-sm{padding:5px 11px;font-size:12px}
+/* LOGIN */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+.login-card{background:var(--surface);border:0.5px solid var(--border-md);border-radius:var(--rl);padding:2rem;width:360px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:16px}
+.login-brand{font-size:17px;font-weight:700;color:var(--brand)}
+.login-sub{font-size:13px;color:var(--text-2)}
+.login-err{font-size:12px;color:var(--red);background:var(--red-bg);padding:8px 12px;border-radius:6px;display:none}
+/* FORMS */
+.form-wrap{padding:18px 20px;max-width:900px}
+.fsection{background:var(--surface);border:0.5px solid var(--border-md);border-radius:var(--rl);margin-bottom:14px;overflow:hidden;box-shadow:var(--shadow)}
+.fsection-head{padding:11px 14px;background:var(--bg);border-bottom:0.5px solid var(--border);font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:11px;padding:14px}
+.fgrid.g2{grid-template-columns:1fr 1fr}.fgrid.g3{grid-template-columns:1fr 1fr 1fr}
+.ffull{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:5px}
+label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:.04em}
+.sf-bar{display:flex;gap:10px;padding:12px 20px;background:var(--surface);border-bottom:0.5px solid var(--border-md);flex-wrap:wrap;align-items:center}
+.sf-sel{font-family:inherit;font-size:13px;padding:6px 10px;border:0.5px solid var(--border-md);border-radius:var(--r);background:var(--bg);color:var(--text);outline:none;min-width:160px}
+.sf-sel:focus{border-color:var(--brand)}
+.fsec-subtitle{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);padding:10px 14px 4px;border-top:0.5px solid var(--border)}
+/* RECORDS */
+.records{padding:10px 14px;display:flex;flex-direction:column;gap:5px;max-height:500px;overflow-y:auto}
+.rec-item{display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--bg);border-radius:var(--r);border:0.5px solid var(--border);cursor:pointer;transition:all .12s}
+.rec-item:hover{border-color:var(--brand);background:var(--brand-light)}
+.rec-item.editing-active{border-color:var(--brand);background:var(--brand-light)}
+.rec-info{flex:1;min-width:0}
+.rec-title{font-size:13px;font-weight:500}
+.rec-sub{font-size:11px;color:var(--text-2);margin-top:2px}
+.rec-hint{font-size:10px;color:var(--text-3);margin-top:1px}
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;z-index:999;padding:11px 18px;border-radius:var(--r);font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;font-weight:500;max-width:320px}
+.toast.show{opacity:1}
+.toast.ok{background:var(--green);color:#fff}
+.toast.err{background:var(--red);color:#fff}
+.toast.info{background:var(--brand);color:#fff}
+/* LOADING */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.neg-assemb-item{display:flex;align-items:flex-start;gap:12px;padding:9px 0;border-bottom:0.5px solid var(--border)}
+.neg-assemb-item:last-child{border-bottom:none}
+.neg-assemb-date{font-size:12px;font-weight:600;font-family:'JetBrains Mono',monospace;color:var(--brand);min-width:90px;flex-shrink:0}
+.neg-assemb-info{flex:1}
+.neg-assemb-titulo{font-size:13px;font-weight:500}
+.neg-assemb-sub{font-size:11px;color:var(--text-2);margin-top:2px}
+.neg-assemb-modal{font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px}
+.modal-p{background:var(--green-bg);color:var(--green-tx)}
+.modal-h{background:var(--brand-light);color:var(--brand-dark)}
+.modal-r{background:var(--purple-bg);color:var(--purple-tx)}
+.neg-assemb-links{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap}
+.hidden{display:none!important}
+.empty{padding:1.5rem;text-align:center;color:var(--text-2);font-size:13px}
+/* MAPA SINDICAL — ADMIN */
+.adm-mapa-bar{padding:10px 20px;background:var(--surface);border-bottom:0.5px solid var(--border-md);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.adm-mapa-body{padding:0 20px 28px}
+.adm-mapa-reg-hd{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);padding:14px 0 8px;display:flex;align-items:center;gap:10px}
+.adm-mapa-reg-hd::after{content:'';flex:1;height:0.5px;background:var(--border-md)}
+.adm-mapa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:10px;margin-bottom:4px}
+.adm-mapa-card{background:var(--surface);border:0.5px solid var(--border-md);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow)}
+.adm-mapa-card-hd{padding:9px 13px;background:var(--bg);border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.adm-mapa-actions{display:flex;gap:5px;padding:7px 13px;border-bottom:0.5px solid var(--border);flex-wrap:wrap;background:#FAFAFF}
+.adm-mapa-cct{border-bottom:0.5px solid var(--border)}
+.adm-mapa-cct:last-child{border-bottom:none}
+.adm-mapa-cct-meta{padding:6px 12px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;border-bottom:0.5px solid var(--border);background:#FAFBFF}
+.adm-mapa-cct-body{padding:7px 12px;display:flex;flex-direction:column;gap:5px}
+.adm-mapa-sind-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.adm-mapa-assemb-toggle{padding:5px 12px;font-size:11px;font-weight:600;color:var(--text-2);cursor:pointer;display:flex;align-items:center;gap:6px;background:var(--bg);border-top:0.5px solid var(--border);user-select:none}
+.adm-mapa-assemb-toggle:hover{background:#F0F1F5}
+.adm-mapa-assemb-toggle .tog-icon{font-size:10px;transition:transform .15s}
+.adm-mapa-assemb-toggle.open .tog-icon{transform:rotate(90deg)}
+.adm-mapa-assemb-list{display:none;border-top:0.5px solid var(--border)}
+.adm-mapa-assemb-list.open{display:block}
+.adm-mapa-assemb-row{display:flex;align-items:center;gap:7px;padding:6px 12px;border-bottom:0.5px solid var(--border);font-size:11px;flex-wrap:wrap}
+.adm-mapa-assemb-row:last-child{border-bottom:none}
+.adm-mapa-assemb-row:hover{background:#FAFBFF}
+.adm-assemb-date{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--text-2);min-width:72px}
+.viagem-chip{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:var(--amber-bg);color:var(--amber-tx)}
+.sem-viagem-chip{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:#F3F4F6;color:#6B7280}
+.adm-mapa-empty{padding:10px 12px;font-size:11px;color:var(--text-3);text-align:center;font-style:italic}
+.b-orange{background:var(--orange-bg);color:var(--orange-tx)}
+.b-purple{background:var(--purple-bg);color:var(--purple-tx)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" class="login-wrap">
+  <div class="login-card">
+    <div><div class="login-brand">Monitor Sindical ACAD</div><div class="login-sub">Área administrativa</div></div>
+    <div class="field"><label>E-mail</label><input type="email" id="l-email" placeholder="seu@email.com"></div>
+    <div class="field"><label>Senha</label><input type="password" id="l-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="login-err" id="l-err">E-mail ou senha incorretos.</div>
+    <button class="btn btn-primary" id="l-btn" onclick="doLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- PAINEL ADMIN -->
+<div id="admin-panel" class="layout hidden">
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">Monitor Sindical</div>
+    <div class="sub-logo">Admin</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-label">Editar dados</div>
+    <button class="nav-item active" onclick="setAdmNav('negociacoes',this)"><span style="font-size:14px;width:18px;text-align:center">◫</span> Negociações</button>
+    <button class="nav-item" onclick="setAdmNav('assembleias',this)"><span style="font-size:14px;width:18px;text-align:center">◷</span> Assembleias</button>
+    <button class="nav-item" onclick="setAdmNav('ccts',this)"><span style="font-size:14px;width:18px;text-align:center">§</span> CCTs e pisos</button>
+    <button class="nav-item" onclick="setAdmNav('sindicatos',this)"><span style="font-size:14px;width:18px;text-align:center">⊞</span> Sindicatos</button>
+    <button class="nav-item" onclick="setAdmNav('encontros',this)"><span style="font-size:14px;width:18px;text-align:center">≡</span> Encontros ACAD</button>
+    <div class="nav-label" style="margin-top:6px">Visão geral</div>
+    <button class="nav-item" onclick="setAdmNav('mapa',this)"><span style="font-size:14px;width:18px;text-align:center">◈</span> Mapa Sindical</button>
+  </nav>
+  <div class="sidebar-footer">
+    <button class="btn btn-ghost btn-sm" onclick="doLogout()" style="width:100%">← Sair</button>
+    <div style="font-size:11px;color:var(--text-3);margin-top:8px" id="user-email"></div>
+  </div>
+</aside>
+
+<div class="main">
+
+  <!-- NEGOCIAÇÕES -->
+  <div id="adm-negociacoes">
+    <div class="topbar"><div class="page-title">Negociações</div></div>
+    <div class="sf-bar">
+      <select class="sf-sel" id="n-ano" onchange="loadNegList()"><option>2026</option><option>2025</option><option>2024</option><option>2023</option></select>
+      <select class="sf-sel" id="n-uf" onchange="loadNegForm()"><option value="">Selecione o estado...</option></select>
+    </div>
+    <div class="form-wrap" id="neg-form" style="display:none">
+      <div class="fsection">
+        <div class="fsection-head">
+          <span id="neg-form-title">Negociação</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" id="neg-cancel" onclick="cancelNeg()" style="display:none">Cancelar</button>
+            <button class="btn btn-primary btn-sm" onclick="saveNeg()" id="neg-save-btn">Salvar</button>
+          </div>
+        </div>
+        <div class="fgrid g3">
+          <div class="field"><label>Status</label>
+            <select id="nf-status"><option value="aguardando">Aguardando data base</option><option value="negociacao">Em negociação</option><option value="sem_acordo">Sem acordo</option><option value="concluido">Acordo finalizado</option></select></div>
+          <div class="field"><label>Abrangência (funções)</label>
+            <select id="nf-funcao"><option value="todas">Todas as funções</option><option value="ef">Educ. Física</option><option value="adm">Administrativo</option></select></div>
+          <div class="field"><label>Tipo (cobertura)</label>
+            <select id="nf-tipo"><option>Estado</option><option>Município</option><option>Estado/Município</option></select></div>
+          <div class="field"><label>Data base</label><input type="text" id="nf-database" placeholder="ex: 01/2026"></div>
+          <div class="field"><label>Percentual sugerido (%)</label><input type="text" id="nf-pct-prop" placeholder="ex: 8,0"></div>
+          <div class="field"><label>Percentual acordado (%)</label><input type="text" id="nf-pct" placeholder="ex: 5,84"></div>
+          <div class="field"><label>Observações</label><input type="text" id="nf-obs"></div>
+          <div class="field ffull"><label>Sindicato</label>
+            <select id="nf-sind" onchange="loadAssembleiasNeg()">
+              <option value="">Nenhum / Não cadastrado</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <!-- Assembleias vinculadas -->
+      <div class="fsection" id="neg-assembleias-section" style="display:none">
+        <div class="fsection-head">
+          <span>Assembleias vinculadas a esta negociação</span>
+          <span style="font-size:11px;font-weight:400;color:var(--text-2)">Puxadas automaticamente do calendário pelo sindicato</span>
+        </div>
+        <div id="neg-assembleias-list" style="padding:10px 14px;font-size:13px;color:var(--text-2)">Selecione um sindicato para ver as assembleias.</div>
+      </div>
+    </div>
+    <div class="form-wrap" style="padding-top:0">
+      <div class="fsection">
+        <div class="fsection-head">Registros do ano <span id="neg-list-ano" style="font-weight:400;color:var(--text-2);font-size:12px"></span></div>
+        <div class="records" id="neg-list"><div class="empty">Selecione um ano para ver os registros.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ASSEMBLEIAS -->
+  <div id="adm-assembleias" class="hidden">
+    <div class="topbar"><div class="page-title">Assembleias</div></div>
+    <div class="form-wrap">
+      <div class="fsection">
+        <div class="fsection-head">
+          <span id="assemb-form-title">Nova assembleia</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" id="assemb-cancel" onclick="cancelEditAssembleia()" style="display:none">Cancelar edição</button>
+            <button class="btn btn-success btn-sm" onclick="saveAssembleia()">Salvar</button>
+          </div>
+        </div>
+        <div class="fgrid g3">
+          <div class="field"><label>Data</label><input type="date" id="as-data"></div>
+          <div class="field"><label>Horário</label><input type="time" id="as-hora"></div>
+          <div class="field">
+            <label>Estado</label>
+            <select id="as-uf" onchange="toggleTodosAviso()"></select>
+            <div id="todos-aviso" style="display:none;margin-top:5px;background:var(--amber-bg);color:var(--amber-tx);font-size:11px;font-weight:500;padding:6px 9px;border-radius:6px;border:0.5px solid var(--amber)">
+              ⚡ Serão criados <strong>27 registros</strong> — um para cada estado do Brasil.
+            </div>
+          </div>
+          <div class="field"><label>Tipo</label><select id="as-tipo"><option>Assembleia</option><option>Reunião de negociação</option><option>Homologação</option><option>Audiência</option><option>Outro</option></select></div>
+          <div class="field"><label>Modalidade</label><select id="as-modal"><option value="presencial">Presencial</option><option value="hibrida">Híbrida</option><option value="remota">Remota</option></select></div>
+          <div class="field"><label>Sindicato</label><select id="as-sind-sel"></select></div>
+          <div class="field"><label>Endereço</label><input type="text" id="as-endereco" placeholder="Rua, nº, cidade"></div>
+          <div class="field"><label>Link da reunião</label><input type="url" id="as-link-meet" placeholder="https://meet..."></div>
+          <div class="field"><label>Link do edital de convocação</label><input type="url" id="as-link-edital" placeholder="https://..."></div>
+          <div class="field"><label>Link da pauta (OneDrive)</label><input type="url" id="as-link-pauta"></div>
+          <div class="field"><label>Link da ata (OneDrive)</label><input type="url" id="as-link-ata"></div>
+          <div class="field"><label>Percentual discutido</label><input type="text" id="as-neg-pct" placeholder="ex: 5,5%"></div>
+          <div class="field" style="align-self:end">
+            <label>Viagem realizada</label>
+            <label style="display:flex;align-items:center;gap:8px;padding:7px 0;text-transform:none;font-size:13px;font-weight:400">
+              <input type="checkbox" id="as-viagem" style="width:16px;height:16px;accent-color:var(--brand)"> Viajamos para esta reunião
+            </label>
+          </div>
+          <div class="field ffull"><label>Resumo / relato livre</label><textarea id="as-resumo"></textarea></div>
+          <div class="field ffull"><label>Observações (links de recusa, ofícios...)</label><textarea id="as-obs" style="min-height:50px"></textarea></div>
+        </div>
+      </div>
+      <div class="fsection">
+        <div class="fsection-head">Assembleias cadastradas</div>
+        <div class="records" id="assemb-list"><div class="empty">Carregando...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CCTs -->
+  <div id="adm-ccts" class="hidden">
+    <div class="topbar"><div class="page-title">CCTs e pisos salariais</div></div>
+    <div class="sf-bar">
+      <select class="sf-sel" id="ca-ano" onchange="loadCCTList()"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option><option value="2023">2023</option></select>
+      <select class="sf-sel" id="ca-uf" onchange="loadCCTForm()"><option value="">Selecione o estado...</option></select>
+    </div>
+    <div class="form-wrap" id="cct-form" style="display:none">
+      <div class="fsection">
+        <div class="fsection-head"><span id="cct-form-title">CCT</span><button class="btn btn-primary btn-sm" onclick="saveCCT()">Salvar</button></div>
+        <div class="fgrid g3">
+          <div class="field"><label>Sindicato laboral</label><select id="cf-sind-lab"></select></div>
+          <div class="field"><label>Sindicato patronal</label><select id="cf-sind-pat"></select></div>
+          <div class="field"><label>Abrangência (funções)</label><select id="cf-abrang"><option value="todas">Todas as funções</option><option value="ef">Educ. Física</option><option value="adm">Administrativo</option></select></div>
+          <div class="field"><label>Tipo (cobertura)</label><select id="cf-tipo"><option>Estado</option><option>Município</option><option>Estado/Município</option></select></div>
+          <div class="field"><label>Identificador do grupo <span style="font-size:10px;color:var(--text-3);font-weight:400">(para múltiplas CCTs no mesmo estado)</span></label>
+            <input type="text" id="cf-grupo" placeholder="principal" value="principal">
+          </div>
+          <div class="field"><label>Data base</label><input type="text" id="cf-database" placeholder="ex: 01/2026"></div>
+          <div class="field"><label>Vigência inicial</label><input type="date" id="cf-vigini"></div>
+          <div class="field"><label>Vigência final</label><input type="date" id="cf-vigfim"></div>
+          <div class="field"><label>Percentual de reajuste (%)</label><input type="text" id="cf-pct" placeholder="ex: 5,84"></div>
+          <div class="field"><label>Link CCT (mediador/MTE)</label><input type="url" id="cf-link-cct"></div>
+          <div class="field"><label>Link aditivos</label><input type="url" id="cf-link-adi"></div>
+          <div class="field"><label>Link drive</label><input type="url" id="cf-link-drv"></div>
+        </div>
+        <div class="fsec-subtitle">Educação física — Mensalistas</div>
+        <div class="fgrid">
+          <div class="field"><label>Prof. EF mensalista</label><input type="text" id="cf-ef-men" placeholder="R$ 0,00"></div>
+          <div class="field"><label>Coord. EF mensalista</label><input type="text" id="cf-ef-cmen" placeholder="R$ 0,00"></div>
+          <div class="field"><label>Resp. técnico (superior)</label><input type="text" id="cf-ef-resp" placeholder="R$ 0,00"></div>
+        </div>
+        <div class="fsec-subtitle">Educação física — Horistas</div>
+        <div class="fgrid">
+          <div class="field"><label>Prof. EF horista</label><input type="text" id="cf-ef-hor" placeholder="R$ 0,00"></div>
+          <div class="field"><label>Coord./Técnico horista</label><input type="text" id="cf-ef-chor" placeholder="R$ 0,00"></div>
+          <div class="field"><label>Aulas coletivas horista</label><input type="text" id="cf-ef-col" placeholder="R$ 0,00"></div>
+        </div>
+        <div class="fsec-subtitle">Administrativo</div>
+        <div class="fgrid">
+          <div class="field"><label>Administrativo 44h</label><input type="text" id="cf-adm-44" placeholder="R$ 0,00"></div>
+          <div class="field"><label>Adm./Coord. superior</label><input type="text" id="cf-adm-sup" placeholder="R$ 0,00"></div>
+          <div class="field"><label>Administrativo diária</label><input type="text" id="cf-adm-dia" placeholder="R$ 0,00"></div>
+          <div class="field"><label>Serviços gerais 44h</label><input type="text" id="cf-serv" placeholder="R$ 0,00"></div>
+        </div>
+        <div class="fsec-subtitle">Benefícios</div>
+        <div class="fgrid" style="padding-bottom:16px">
+          <div class="field"><label>Cesta básica</label><input type="text" id="cf-cesta" placeholder="R$ 0,00"></div>
+          <div class="field"><label>VR/VA 8h</label><input type="text" id="cf-vr8" placeholder="R$ 0,00"></div>
+          <div class="field"><label>VR/VA 7h ou mais</label><input type="text" id="cf-vr7" placeholder="R$ 0,00"></div>
+          <div class="field"><label>VR/VA 6h</label><input type="text" id="cf-vr6" placeholder="R$ 0,00"></div>
+          <div class="field"><label>VR/VA 4h</label><input type="text" id="cf-vr4" placeholder="R$ 0,00"></div>
+          <div class="field"><label>Anuênio/Biênio/Quinquênio</label><input type="text" id="cf-anu" placeholder="ex: 1% ao ano"></div>
+          <div class="field"><label>Vale transporte</label><select id="cf-vt"><option value="">—</option><option>Sim</option><option>Não</option></select></div>
+          <div class="field"><label>Adicional noturno</label><input type="text" id="cf-not" placeholder="ex: 20%"></div>
+          <div class="field"><label>Gratif. caixa / Quebra caixa</label><input type="text" id="cf-qcx" placeholder="R$ 0,00 ou %"></div>
+          <div class="field"><label>BSF — Benef. Social Familiar</label><input type="text" id="cf-bsf" placeholder="R$ 0,00"></div>
+          <div class="field ffull"><label>Outros benefícios</label><textarea id="cf-outros" style="min-height:50px"></textarea></div>
+            </div>
+            <div class="fsec-subtitle">Contribuições sindicais</div>
+            <div class="fgrid" style="padding-bottom:16px">
+              <div class="field ffull"><label>Contribuição Assistencial</label><textarea id="cf-cont-assist" style="min-height:50px" placeholder="Valor, percentual ou descrição..."></textarea></div>
+              <div class="field ffull"><label>Contribuição Patronal</label><textarea id="cf-cont-patronal" style="min-height:50px" placeholder="Valor, percentual ou descrição..."></textarea></div>
+              <div class="field ffull"><label>Contribuição Laboral</label><textarea id="cf-cont-laboral" style="min-height:50px" placeholder="Valor, percentual ou descrição..."></textarea></div>
+            </div>
+        </div>
+      </div>
+    </div>
+    <div class="form-wrap" style="padding-top:0">
+      <div class="fsection">
+        <div class="fsection-head">CCTs cadastradas</div>
+        <div class="records" id="cct-list"><div class="empty">Selecione um ano para ver as CCTs.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SINDICATOS -->
+  <div id="adm-sindicatos" class="hidden">
+    <div class="topbar"><div class="page-title">Sindicatos</div></div>
+    <div class="form-wrap">
+      <div class="fsection">
+        <div class="fsection-head">
+          <span id="sind-form-title">Novo sindicato</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" id="sind-cancel" onclick="cancelEditSind()" style="display:none">Cancelar edição</button>
+            <button class="btn btn-success btn-sm" onclick="saveSind()">Salvar</button>
+          </div>
+        </div>
+        <div class="fgrid g2">
+          <div class="field"><label>Estado</label><select id="si-uf"></select></div>
+          <div class="field"><label>Região que atende</label><input type="text" id="si-regiao" placeholder="ex: Estado de SP, Grande ABC..."></div>
+          <div class="field ffull"><label>Nome completo do sindicato</label><input type="text" id="si-nome" placeholder="Nome completo"></div>
+          <div class="field"><label>Sigla</label><input type="text" id="si-sigla" placeholder="ex: SINESP"></div>
+          <div class="field"><label>CNPJ</label><input type="text" id="si-cnpj" placeholder="00.000.000/0001-00"></div>
+          <div class="field"><label>Tipo</label><select id="si-tipo"><option value="laboral">Laboral</option><option value="patronal">Patronal</option></select></div>
+          <div class="field"><label>Abrangência (funções)</label><select id="si-abrang"><option value="todas">Todas as funções</option><option value="ef">Educ. Física</option><option value="adm">Administrativo</option></select></div>
+          <div class="field"><label>Tipo (cobertura)</label><select id="si-cobertura"><option>Estado</option><option>Município</option><option>Estado/Município</option></select></div>
+          <div class="field"><label>Telefone</label><input type="text" id="si-tel" placeholder="(00) 00000-0000"></div>
+          <div class="field"><label>E-mail</label><input type="text" id="si-email" placeholder="contato@sindicato.org.br"></div>
+          <div class="field ffull"><label>Observações</label><textarea id="si-obs" style="min-height:50px"></textarea></div>
+        </div>
+      </div>
+      <div class="fsection">
+        <div class="fsection-head">Sindicatos cadastrados</div>
+        <div class="records" id="sind-list"><div class="empty">Carregando...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ENCONTROS -->
+  <div id="adm-encontros" class="hidden">
+    <div class="topbar"><div class="page-title">Encontros semanais ACAD</div></div>
+    <div class="form-wrap">
+      <div class="fsection">
+        <div class="fsection-head">
+          <span id="enc-form-title">Registrar encontro</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" id="enc-cancel" onclick="cancelEditEncontro()" style="display:none">Cancelar edição</button>
+            <button class="btn btn-success btn-sm" onclick="saveEncontro()">Salvar</button>
+          </div>
+        </div>
+        <div class="fgrid g3">
+          <div class="field"><label>Data do encontro</label><input type="date" id="en-data"></div>
+          <div class="field"><label>Status</label><select id="en-status"><option value="realizado">Realizado</option><option value="cancelado">Cancelado</option><option value="pendente">Pendente</option></select></div>
+          <div class="field"><label>Link da ata (OneDrive)</label><input type="url" id="en-ata" placeholder="https://onedrive.live.com/..."></div>
+          <div class="field ffull"><label>Observações</label><textarea id="en-obs" style="min-height:50px"></textarea></div>
+        </div>
+      </div>
+      <div class="fsection">
+        <div class="fsection-head">Resumo mensal</div>
+        <div class="fgrid g3">
+          <div class="field"><label>Mês/Ano</label><input type="text" id="rm-mes" placeholder="ex: Abril/2026"></div>
+          <div class="field"><label>Link OneDrive</label><input type="url" id="rm-link" placeholder="https://..."></div>
+          <div class="field" style="align-self:end"><button class="btn btn-primary btn-sm" onclick="saveResumoMes()" style="width:100%">Salvar resumo</button></div>
+        </div>
+      </div>
+      <div class="fsection">
+        <div class="fsection-head">Encontros cadastrados</div>
+        <div class="records" id="enc-list"><div class="empty">Carregando...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAPA SINDICAL ADMIN -->
+  <div id="adm-mapa" class="hidden">
+    <div class="topbar">
+      <div class="page-title">Mapa Sindical</div>
+    </div>
+    <div class="adm-mapa-bar">
+      <select id="adm-mapa-ano" onchange="renderAdmMapa()" style="width:100px;font-size:12px;padding:5px 8px;border:0.5px solid var(--border-md);border-radius:var(--r);background:var(--bg);font-family:inherit">
+        <option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option><option value="2023">2023</option>
+      </select>
+      <select id="adm-mapa-reg" onchange="renderAdmMapa()" style="font-size:12px;padding:5px 8px;border:0.5px solid var(--border-md);border-radius:var(--r);background:var(--bg);font-family:inherit;width:auto">
+        <option value="">Todas as regiões</option>
+        <option value="norte">Norte</option><option value="nordeste">Nordeste</option>
+        <option value="centro">Centro-Oeste</option><option value="sudeste">Sudeste</option><option value="sul">Sul</option>
+      </select>
+      <input type="text" id="adm-mapa-search" placeholder="Buscar estado..." oninput="renderAdmMapa()" style="width:150px;font-size:12px;padding:5px 8px;border:0.5px solid var(--border-md);border-radius:var(--r);background:var(--bg);font-family:inherit">
+      <div id="adm-mapa-loading" style="font-size:12px;color:var(--text-3)"></div>
+    </div>
+    <div class="adm-mapa-body" id="adm-mapa-body">
+      <div class="empty">Carregando...</div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /admin-panel -->
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+// ================================================================
+//  COLE AQUI SUAS CREDENCIAIS DO SUPABASE
+// ================================================================
+const SUPABASE_URL  = 'https://zdrrjckwddvjmmobsclw.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkcnJqY2t3ZGR2am1tb2JzY2x3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4OTY0OTEsImV4cCI6MjA5MjQ3MjQ5MX0.hNW-D6ujDgM8pXoZSGUf_urrAuMvEfM3Y9M-vbr9jhk';
+// ================================================================
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// Helper: parsear data ISO sem timezone shift
+function parseLocalDate(iso){
+  const [y,m,d]=iso.split('-').map(Number);
+  return new Date(y,m-1,d);
+}
+
+// ── Estado global ──
+let sindicatos = [];
+let currentEditId = { neg:null, assemb:null, cct:null, sind:null, enc:null };
+
+const ESTADOS = [
+  {uf:"AC",nome:"Acre"},{uf:"AL",nome:"Alagoas"},{uf:"AM",nome:"Amazonas"},
+  {uf:"AP",nome:"Amapá"},{uf:"BA",nome:"Bahia"},{uf:"CE",nome:"Ceará"},
+  {uf:"DF",nome:"Distrito Federal"},{uf:"ES",nome:"Espírito Santo"},
+  {uf:"GO",nome:"Goiás"},{uf:"MA",nome:"Maranhão"},{uf:"MG",nome:"Minas Gerais"},
+  {uf:"MS",nome:"Mato Grosso do Sul"},{uf:"MT",nome:"Mato Grosso"},
+  {uf:"PA",nome:"Pará"},{uf:"PB",nome:"Paraíba"},{uf:"PE",nome:"Pernambuco"},
+  {uf:"PI",nome:"Piauí"},{uf:"PR",nome:"Paraná"},{uf:"RJ",nome:"Rio de Janeiro"},
+  {uf:"RN",nome:"Rio Grande do Norte"},{uf:"RO",nome:"Rondônia"},
+  {uf:"RR",nome:"Roraima"},{uf:"RS",nome:"Rio Grande do Sul"},
+  {uf:"SC",nome:"Santa Catarina"},{uf:"SE",nome:"Sergipe"},
+  {uf:"SP",nome:"São Paulo"},{uf:"TO",nome:"Tocantins"}
+];
+
+const STATUS_LABEL = {negociacao:"Em negociação",aguardando:"Aguardando data base",sem_acordo:"Sem acordo",concluido:"Acordo finalizado"};
+const STATUS_BADGE = {negociacao:"b-neg",aguardando:"b-warn",sem_acordo:"b-red",concluido:"b-ok"};
+const ABRANG = {todas:"Todas as funções",ef:"Educ. Física",adm:"Administrativo"};
+
+// ── Helpers ──
+function toast(msg, type='ok'){
+  const t=document.getElementById('toast');t.textContent=msg;
+  t.className=`toast show ${type}`;setTimeout(()=>t.className='toast',3500);
+}
+function setLoading(btnId, loading){
+  const btn=document.getElementById(btnId);if(!btn)return;
+  btn.disabled=loading;
+  btn.innerHTML=loading?'<span class="spinner"></span> Salvando...':btn.dataset.origText||'Salvar';
+  if(!loading&&!btn.dataset.origText)btn.dataset.origText=btn.textContent;
+}
+function getVal(id){ return document.getElementById(id)?.value||null; }
+function setVal(id,val){ const el=document.getElementById(id);if(el)el.value=val||''; }
+
+function populateUFs(selectIds){
+  selectIds.forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    sel.innerHTML='<option value="">Selecione...</option>';
+    ESTADOS.forEach(e=>{
+      const o=document.createElement('option');o.value=e.uf;
+      o.textContent=`${e.uf} — ${e.nome}`;sel.appendChild(o);
+    });
+  });
+}
+
+function populateSindSelects(ids){
+  ids.forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    const curVal=sel.value; // preservar valor atual
+    sel.innerHTML='<option value="">Sem sindicato</option>';
+    sindicatos.forEach(s=>{
+      const o=document.createElement('option');o.value=s.id;
+      o.textContent=`${s.uf} — ${s.sigla||s.nome.substring(0,30)} (${s.tipo})`;
+      sel.appendChild(o);
+    });
+    if(curVal)sel.value=curVal; // restaurar valor após repopular
+  });
+}
+
+// ── AUTH ──
+async function doLogin(){
+  const email=document.getElementById('l-email').value;
+  const pass=document.getElementById('l-pass').value;
+  const errEl=document.getElementById('l-err');
+  errEl.style.display='none';
+  document.getElementById('l-btn').innerHTML='<span class="spinner" style="border-top-color:var(--brand)"></span> Entrando...';
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  document.getElementById('l-btn').innerHTML='Entrar';
+  if(error){errEl.textContent='E-mail ou senha incorretos.';errEl.style.display='block';return;}
+  document.getElementById('user-email').textContent=data.user.email;
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('admin-panel').classList.remove('hidden');
+  await initAdmin();
+}
+window.doLogin=doLogin;
+
+async function doLogout(){
+  await sb.auth.signOut();
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('admin-panel').classList.add('hidden');
+}
+window.doLogout=doLogout;
+
+// Verificar sessão existente
+sb.auth.getSession().then(({data:{session}})=>{
+  if(session){
+    document.getElementById('user-email').textContent=session.user.email;
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('admin-panel').classList.remove('hidden');
+    initAdmin();
+  }
+});
+
+async function initAdmin(){
+  populateUFs(['n-uf','as-uf','si-uf','ca-uf']);
+
+  // Carregar config do Supabase
+  const {data:cfgData}=await sb.from('config').select('*');
+  if(cfgData){
+    const getConf=chave=>cfgData.find(c=>c.chave===chave)?.valor;
+
+    // Anos ativos — atualizar selects de ano
+    const anos=getConf('anos_ativos');
+    if(anos&&Array.isArray(anos)){
+      ['n-ano','ca-ano'].forEach(id=>{
+        const sel=document.getElementById(id);if(!sel)return;
+        const cur=sel.value;
+        sel.innerHTML='';
+        anos.forEach(y=>{
+          const o=document.createElement('option');o.value=y;o.textContent=y;sel.appendChild(o);
+        });
+        if(cur)sel.value=cur;else sel.value=anos[0];
+      });
+    }
+
+    // Status de negociação
+    const statusList=getConf('status_negociacao');
+    if(statusList&&Array.isArray(statusList)){
+      const sel=document.getElementById('nf-status');
+      if(sel){
+        sel.innerHTML='';
+        statusList.forEach(s=>{
+          const o=document.createElement('option');o.value=s.valor;o.textContent=s.label;sel.appendChild(o);
+        });
+      }
+    }
+
+    // Textos
+    const textos=getConf('textos_interface');
+    if(textos){
+      const set=(sel,txt)=>{const el=document.querySelector(sel);if(el&&txt)el.textContent=txt;};
+      set('.brand', textos.titulo_sidebar);
+      set('.sub-logo', textos.titulo_admin||'Admin');
+    }
+  }
+
+  // Adicionar opção "Todos os estados" no select de assembleias
+  const asUf=document.getElementById('as-uf');
+  if(asUf){
+    const optTodos=document.createElement('option');
+    optTodos.value='TODOS';
+    optTodos.textContent='⚡ Todos os estados (cria um registro por estado)';
+    optTodos.style.fontWeight='600';
+    asUf.insertBefore(optTodos, asUf.options[1]);
+  }
+  const {data}=await sb.from('sindicatos').select('*').order('uf');
+  sindicatos=data||[];
+  populateSindSelects(['as-sind-sel','cf-sind-lab','cf-sind-pat','nf-sind']);
+  renderSindList();
+  renderAssemblList();
+  renderEncList();
+  loadNegList();
+  await loadCCTList();
+}
+
+// ── NAVEGAÇÃO ──
+window.setAdmNav=function(n,el){
+  document.querySelectorAll('#admin-panel .nav-item').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  ['negociacoes','assembleias','ccts','sindicatos','encontros','mapa'].forEach(v=>
+    document.getElementById('adm-'+v).classList.toggle('hidden',v!==n));
+  if(n==='negociacoes') loadNegList();
+  if(n==='ccts')        loadCCTList();
+  if(n==='assembleias') renderAssemblList();
+  if(n==='sindicatos')  renderSindList();
+  if(n==='encontros')   renderEncList();
+  if(n==='mapa')        renderAdmMapa();
+};
+
+// ════════════════ NEGOCIAÇÕES ════════════════
+window.loadNegList=async function(){
+  const ano=parseInt(document.getElementById('n-ano').value);
+  const el=document.getElementById('neg-list');
+  el.innerHTML='<div class="empty" style="font-size:12px;color:var(--text-3)">Carregando...</div>';
+  try{
+  const {data,error}=await sb.from('negociacoes').select('*').eq('ano',ano).order('uf');
+  if(error){el.innerHTML=`<div class="empty" style="color:var(--red)">Erro: ${error.message}</div>`;return;}
+  const rows=data||[];
+  if(!rows.length){el.innerHTML=`<div class="empty">Nenhuma negociação em ${ano}.<br><small style="color:var(--text-3)">Selecione um estado acima para criar.</small></div>`;return;}
+  el.innerHTML=rows.map(n=>`
+    <div class="rec-item ${currentEditId.neg===n.id?'editing-active':''}" onclick="editNeg(${n.id})">
+      <div class="rec-info">
+        <div class="rec-title">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-2)">${n.uf}</span>
+          ${ESTADOS.find(e=>e.uf===n.uf)?.nome||n.uf}
+          <span class="badge ${STATUS_BADGE[n.status||'aguardando']}">${STATUS_LABEL[n.status||'aguardando']}</span>
+          <span class="badge b-gray" style="font-size:9px">${{todas:'Todas as funções',ef:'Educ. Física',adm:'Administrativo'}[n.funcao||'todas']}</span>
+          ${n.tipo&&n.tipo!=='Estado'?`<span class="badge b-teal" style="font-size:9px">${n.tipo}</span>`:''}
+          ${n.percentual?`<span style="font-size:11px;font-weight:600;color:var(--brand);font-family:'JetBrains Mono',monospace;margin-left:4px">${n.percentual}%</span>`:''}
+          ${n.pct_proposto&&!n.percentual?`<span style="font-size:11px;font-weight:600;color:var(--amber);font-family:'JetBrains Mono',monospace;margin-left:4px">Prop: ${n.pct_proposto}%</span>`:''}
+        </div>
+        <div class="rec-sub">${n.data_base?'Data base: '+n.data_base:''}${n.obs?' — '+n.obs.substring(0,65)+(n.obs.length>65?'…':''):''}</div>
+        <div class="rec-hint">Clique para editar</div>
+      </div>
+      <button class="btn btn-danger btn-sm" style="flex-shrink:0"
+        onclick="event.stopPropagation();delNeg(${n.id})">Excluir</button>
+    </div>`).join('');
+  }catch(e){el.innerHTML='<div class="empty" style="color:var(--red)">Erro ao carregar. Tente novamente.</div>';console.error(e);}
+};
+
+window.delNeg=async function(id){
+  if(!confirm('Excluir esta negociação?'))return;
+  const {error}=await sb.from('negociacoes').delete().eq('id',id);
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('Negociação excluída.');
+  if(currentEditId.neg===id){
+    currentEditId.neg=null;
+    document.getElementById('neg-form').style.display='none';
+    document.getElementById('neg-cancel').style.display='none';
+    document.getElementById('n-uf').value='';
+  }
+  await loadNegList();
+};
+
+window.loadNegForm=async function(idOverride){
+  const ano=parseInt(document.getElementById('n-ano').value);
+  let row=null;
+
+  if(idOverride){
+    const {data}=await sb.from('negociacoes').select('*').eq('id',idOverride).single();
+    row=data;
+    if(row){
+      document.getElementById('n-uf').value=row.uf;
+      const funcaoSel=document.getElementById('nf-funcao');
+      if(funcaoSel)funcaoSel.value=row.funcao||'todas';
+      const tipoSel=document.getElementById('nf-tipo');
+      if(tipoSel)tipoSel.value=row.tipo||'Estado';
+    }
+  } else {
+    const uf=document.getElementById('n-uf').value;
+    if(!uf)return;
+    const funcao=document.getElementById('nf-funcao')?.value||'todas';
+    const tipo=document.getElementById('nf-tipo')?.value||'Estado';
+    const {data}=await sb.from('negociacoes').select('*')
+      .eq('ano',ano).eq('uf',uf).eq('funcao',funcao).eq('tipo',tipo).maybeSingle();
+    row=data;
+  }
+
+  document.getElementById('neg-form').style.display='block';
+  const ufRow=row?.uf||document.getElementById('n-uf').value||'';
+  const estNome=ESTADOS.find(e=>e.uf===ufRow)?.nome||ufRow;
+  const funcaoLabel={todas:'Todas as funções',ef:'Educ. Física',adm:'Administrativo'};
+
+  if(row){
+    currentEditId.neg=row.id;
+    document.getElementById('neg-cancel').style.display='block';
+    document.getElementById('neg-form-title').textContent=
+      `${ufRow} — ${estNome} — ${funcaoLabel[row.funcao||'todas']} / ${row.tipo||'Estado'} — ${ano}`;
+    setVal('nf-status',   row.status);
+    setVal('nf-funcao',   row.funcao||'todas');
+    setVal('nf-tipo',     row.tipo);
+    setVal('nf-pct-prop', row.pct_proposto);
+    setVal('nf-pct',      row.percentual);
+    setVal('nf-database', row.data_base);
+    setVal('nf-obs',      row.obs);
+    // Carregar sindicato salvo e manter fixo
+    const sindSel=document.getElementById('nf-sind');
+    if(sindSel)sindSel.value=String(row.sind_id||'');
+  } else {
+    currentEditId.neg=null;
+    document.getElementById('neg-cancel').style.display='none';
+    document.getElementById('neg-form-title').textContent=
+      `${ufRow} — ${estNome} — Novo registro — ${ano}`;
+    ['nf-pct-prop','nf-pct','nf-database','nf-obs'].forEach(id=>setVal(id,''));
+    setVal('nf-status','aguardando');
+    const sindSel=document.getElementById('nf-sind');
+    if(sindSel)sindSel.value='';
+  }
+  loadAssembleiasNeg();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+window.editNeg=function(id){ loadNegForm(id); }
+
+window.cancelNeg=function(){
+  currentEditId.neg=null;
+  document.getElementById('neg-form').style.display='none';
+  document.getElementById('neg-cancel').style.display='none';
+  document.getElementById('n-uf').value='';
+};
+
+window.saveNeg=async function(){
+  const ano=parseInt(document.getElementById('n-ano').value);
+  const uf=document.getElementById('n-uf').value;
+  if(!uf){toast('Selecione um estado.','err');return;}
+  const payload={
+    ano,uf,status:getVal('nf-status'),funcao:getVal('nf-funcao')||'todas',tipo:getVal('nf-tipo'),
+    pct_proposto:getVal('nf-pct-prop'),percentual:getVal('nf-pct'),
+    data_base:getVal('nf-database'),obs:getVal('nf-obs'),
+    sind_id:parseInt(getVal('nf-sind'))||null,
+  };
+  let error;
+  if(currentEditId.neg){
+    ({error}=await sb.from('negociacoes').update(payload).eq('id',currentEditId.neg));
+  } else {
+    ({error}=await sb.from('negociacoes').upsert({...payload},{onConflict:'ano,uf,funcao,tipo'}));
+  }
+  if(error){
+    if(error.message.includes('duplicate key')||error.code==='23505'){
+      toast('Já existe uma negociação para este estado com esta mesma Abrangência e Tipo. Clique no registro existente na lista para editá-lo.','err');
+    } else {
+      toast('Erro: '+error.message,'err');
+    }
+    return;
+  }
+  toast('Negociação salva!');
+  currentEditId.neg=null;
+  document.getElementById('neg-cancel').style.display='none';
+  await loadNegList();
+};
+
+// ════════════════ ASSEMBLEIAS ════════════════
+async function renderAssemblList(){
+  const {data}=await sb.from('assembleias').select('*').order('data_iso',{ascending:false});
+  const rows=data||[];
+  const el=document.getElementById('assemb-list');
+  if(!rows.length){el.innerHTML='<div class="empty">Nenhuma assembleia cadastrada.</div>';return;}
+  el.innerHTML=rows.map(a=>`
+    <div class="rec-item ${currentEditId.assemb===a.id?'editing-active':''}" onclick="editAssembleia(${a.id})">
+      <div class="rec-info">
+        <div class="rec-title">${a.estado} — ${a.tipo} <span class="badge b-gray" style="font-size:9px">${a.modalidade||''}</span>${a.viagem?'<span class="badge b-warn" style="font-size:9px;margin-left:4px">✈ Viagem</span>':''}</div>
+        <div class="rec-sub">${parseLocalDate(a.data_iso).toLocaleDateString('pt-BR')}${a.hora?' às '+a.hora:''} · ${a.sindicato_nome||''}</div>
+        <div class="rec-hint">Clique para editar</div>
+      </div>
+      <button class="btn btn-danger btn-sm" style="flex-shrink:0" onclick="event.stopPropagation();delAssembleia(${a.id})">Excluir</button>
+    </div>`).join('');
+}
+
+window.editAssembleia=async function(id){
+  const {data}=await sb.from('assembleias').select('*').eq('id',id).single();
+  if(!data)return;
+  currentEditId.assemb=id;
+  document.getElementById('assemb-form-title').textContent=`Editando: ${data.estado} — ${parseLocalDate(data.data_iso).toLocaleDateString('pt-BR')}`;
+  document.getElementById('assemb-cancel').style.display='block';
+  setVal('as-data',data.data_iso);setVal('as-hora',data.hora);
+  document.getElementById('as-uf').value=data.uf;
+  setVal('as-tipo',data.tipo);
+  document.getElementById('as-modal').value=data.modalidade||'remota';
+  document.getElementById('as-sind-sel').value=data.sindicato_id||'';
+  setVal('as-endereco',data.endereco);setVal('as-link-edital',data.link_edital);setVal('as-link-meet',data.link_meet);
+  setVal('as-link-pauta',data.link_pauta);setVal('as-link-ata',data.link_ata);
+  setVal('as-neg-pct',data.neg_pct);setVal('as-resumo',data.resumo);setVal('as-obs',data.obs);
+  document.getElementById('as-viagem').checked=!!data.viagem;
+  window.scrollTo({top:0,behavior:'smooth'});
+  toast('Registro carregado. Edite e salve.','info');
+};
+
+window.cancelEditAssembleia=function(){
+  currentEditId.assemb=null;
+  document.getElementById('assemb-form-title').textContent='Nova assembleia';
+  document.getElementById('assemb-cancel').style.display='none';
+  ['as-data','as-hora','as-endereco','as-link-edital','as-link-meet','as-link-pauta','as-link-ata','as-neg-pct','as-resumo','as-obs']
+    .forEach(id=>setVal(id,''));
+  document.getElementById('as-viagem').checked=false;
+};
+
+window.saveAssembleia=async function(){
+  const data_iso=getVal('as-data');const uf=getVal('as-uf');
+  if(!data_iso||!uf){toast('Data e estado são obrigatórios.','err');return;}
+
+  const sindId=getVal('as-sind-sel');
+  const sind=sindicatos.find(s=>String(s.id)===String(sindId));
+
+  // Montar payload base (sem uf/estado — preenchido abaixo)
+  const base={
+    data_iso,hora:getVal('as-hora'),
+    tipo:getVal('as-tipo'),modalidade:document.getElementById('as-modal').value,
+    sindicato_id:sindId?parseInt(sindId):null,
+    sindicato_nome:sind?sind.sigla||sind.nome.split('—')[0].trim():'',
+    sindicato_tipo:sind?.tipo||'laboral',
+    endereco:getVal('as-endereco'),link_meet:getVal('as-link-meet'),
+    link_edital:getVal('as-link-edital'),link_pauta:getVal('as-link-pauta'),link_ata:getVal('as-link-ata'),
+    neg_pct:getVal('as-neg-pct'),resumo:getVal('as-resumo'),obs:getVal('as-obs'),
+    viagem:document.getElementById('as-viagem').checked,
+  };
+  let error;
+  if(currentEditId.assemb){
+    // Modo edição — atualizar registro existente (uf já definido)
+    const est=ESTADOS.find(e=>e.uf===uf);
+    const payload={...base,uf,estado:est?.nome||uf};
+    ({error}=await sb.from('assembleias').update(payload).eq('id',currentEditId.assemb));
+    if(error){toast('Erro: '+error.message,'err');return;}
+    toast('Assembleia atualizada!');
+  } else if(uf==='TODOS'){
+    // Criar um registro para cada estado
+    const payloads=ESTADOS.map(e=>({...base,uf:e.uf,estado:e.nome}));
+    const {error:err}=await sb.from('assembleias').insert(payloads);
+    if(err){toast('Erro: '+err.message,'err');return;}
+    toast(`✓ ${ESTADOS.length} assembleias criadas — uma por estado!`);
+  } else {
+    // Estado único
+    const est=ESTADOS.find(e=>e.uf===uf);
+    const payload={...base,uf,estado:est?.nome||uf};
+    ({error}=await sb.from('assembleias').insert(payload));
+    if(error){toast('Erro: '+error.message,'err');return;}
+    toast('Assembleia salva!');
+  }
+  cancelEditAssembleia();
+  await renderAssemblList();
+};
+
+window.delAssembleia=async function(id){
+  if(!confirm('Excluir esta assembleia?'))return;
+  const {error}=await sb.from('assembleias').delete().eq('id',id);
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('Excluído.');
+  await renderAssemblList();
+};
+
+// ════════════════ CCTs ════════════════
+window.loadCCTList=async function(){
+  const anoEl=document.getElementById('ca-ano');
+  const ano=parseInt(anoEl?.value);
+  const el=document.getElementById('cct-list');
+  if(!ano||isNaN(ano)){el.innerHTML='<div class="empty">Selecione um ano para ver as CCTs.</div>';return;}
+  el.innerHTML='<div class="empty" style="font-size:12px;color:var(--text-3)">Carregando...</div>';
+  const {data,error}=await sb.from('pisos').select('*').eq('ano',ano).order('uf');
+  if(error){el.innerHTML=`<div class="empty" style="color:var(--red)">Erro: ${error.message}</div>`;return;}
+  const rows=data||[];
+  if(!rows.length){el.innerHTML=`<div class="empty">Nenhuma CCT em ${ano}. Selecione um estado acima para cadastrar.</div>`;return;}
+  el.innerHTML=rows.map(c=>`
+    <div class="rec-item ${currentEditId.cct===c.id?'editing-active':''}" onclick="editCCT(${c.id})">
+      <div class="rec-info">
+        <div class="rec-title">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-2)">${c.uf}</span>
+          ${ESTADOS.find(e=>e.uf===c.uf)?.nome||c.uf}
+          ${c.pct?`<span style="font-size:11px;font-weight:600;color:var(--brand);font-family:'JetBrains Mono',monospace;margin-left:4px">${c.pct}%</span>`:''}
+          <span class="badge b-gray" style="margin-left:4px">${(ABRANG[c.abrangencia]||c.abrangencia||'')+(c.grupo&&c.grupo!=='principal'?' · '+c.grupo:'')}</span>
+        </div>
+        <div class="rec-sub">${c.data_base?'Data base: '+c.data_base:''}</div>
+        <div class="rec-hint">Clique para editar</div>
+      </div>
+      <button class="btn btn-danger btn-sm" style="flex-shrink:0"
+        onclick="event.stopPropagation();delNeg(${n.id})">Excluir</button>
+    </div>`).join('');
+};
+
+window.delNeg=async function(id){
+  if(!confirm('Excluir esta negociação?'))return;
+  const {error}=await sb.from('negociacoes').delete().eq('id',id);
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('Negociação excluída.');
+  if(currentEditId.neg===id){
+    currentEditId.neg=null;
+    document.getElementById('neg-form').style.display='none';
+    document.getElementById('neg-cancel').style.display='none';
+    document.getElementById('n-uf').value='';
+  }
+  await loadNegList();
+};
+
+
+window.delCCT=async function(id){
+  if(!confirm('Excluir esta CCT?'))return;
+  const {error}=await sb.from('pisos').delete().eq('id',id);
+  if(error){toast('Erro: '+error.message,'err');return;}
+  if(currentEditId.cct===id){
+    currentEditId.cct=null;
+    document.getElementById('cct-form').style.display='none';
+    document.getElementById('ca-uf').value='';
+  }
+  toast('CCT excluída.');
+  await loadCCTList();
+};
+
+window.loadCCTForm=async function(idOverride){
+  const ano=parseInt(document.getElementById('ca-ano').value);
+  const uf=idOverride?null:getVal('ca-uf');
+  let row=null;
+  if(idOverride){
+    const {data}=await sb.from('pisos').select('*').eq('id',idOverride).single();
+    row=data;if(row)document.getElementById('ca-uf').value=row.uf;
+  } else {
+    if(!uf)return;
+    const abrang=getVal('cf-abrang')||'todas';
+    const tipo=getVal('cf-tipo')||'Estado';
+    const grupo=getVal('cf-grupo')||'principal';
+    const {data}=await sb.from('pisos').select('*')
+      .eq('ano',ano).eq('uf',uf).eq('abrangencia',abrang).eq('tipo',tipo).eq('grupo',grupo)
+      .maybeSingle();
+    row=data;
+  }
+  populateSindSelects(['cf-sind-lab','cf-sind-pat']);
+  document.getElementById('cct-form').style.display='block';
+  const u=uf||row?.uf||'';
+  document.getElementById('cct-form-title').textContent=`CCT — ${u} / ${ano}`;
+  if(row){currentEditId.cct=row.id;}else{currentEditId.cct=null;}
+  const d=row||{};
+  const m={
+    'cf-sind-lab':d.sind_lab_id||'','cf-sind-pat':d.sind_pat_id||'',
+    'cf-abrang':d.abrangencia||'todas','cf-tipo':d.tipo||'Estado',
+    'cf-database':d.data_base||'','cf-vigini':d.vig_ini||'','cf-vigfim':d.vig_fim||'',
+    'cf-pct':d.pct||'','cf-link-cct':d.link_cct||'','cf-link-adi':d.link_adi||'','cf-link-drv':d.link_drv||'',
+    'cf-ef-men':d.ef_men||'','cf-ef-cmen':d.ef_cmen||'','cf-ef-resp':d.ef_resp||'',
+    'cf-ef-hor':d.ef_hor||'','cf-ef-chor':d.ef_chor||'','cf-ef-col':d.ef_col||'',
+    'cf-adm-44':d.adm_44||'','cf-adm-sup':d.adm_sup||'','cf-adm-dia':d.adm_dia||'','cf-serv':d.serv_gerais||'',
+    'cf-cesta':d.cesta||'','cf-vr8':d.vr_8h||'','cf-vr7':d.vr_7h||'','cf-vr6':d.vr_6h||'','cf-vr4':d.vr_4h||'',
+    'cf-anu':d.anuenio||'','cf-vt':d.vale_transporte||'','cf-not':d.adic_noturno||'',
+    'cf-qcx':d.quebra_caixa||'','cf-bsf':d.bsf||'','cf-outros':d.outros||'','cf-cont-assist':d.cont_assist||'','cf-cont-patronal':d.cont_patronal||'','cf-cont-laboral':d.cont_laboral||''
+  };
+  Object.entries(m).forEach(([id,val])=>setVal(id,val));
+  window.scrollTo({top:0,behavior:'smooth'});
+};
+
+window.editCCT=function(id){ loadCCTForm(id); }
+
+window.saveCCT=async function(){
+  const ano=parseInt(document.getElementById('ca-ano').value);
+  const uf=getVal('ca-uf');
+  if(!uf){toast('Selecione um estado.','err');return;}
+  const g=id=>getVal(id)||null;
+  const payload={
+    ano,uf,
+    sind_lab_id:parseInt(g('cf-sind-lab'))||null,sind_pat_id:parseInt(g('cf-sind-pat'))||null,
+    abrangencia:g('cf-abrang')||'todas',tipo:g('cf-tipo')||'Estado',grupo:g('cf-grupo')||'principal',
+    data_base:g('cf-database'),vig_ini:g('cf-vigini'),vig_fim:g('cf-vigfim'),
+    pct:g('cf-pct'),link_cct:g('cf-link-cct'),link_adi:g('cf-link-adi'),link_drv:g('cf-link-drv'),
+    ef_men:g('cf-ef-men'),ef_cmen:g('cf-ef-cmen'),ef_resp:g('cf-ef-resp'),
+    ef_hor:g('cf-ef-hor'),ef_chor:g('cf-ef-chor'),ef_col:g('cf-ef-col'),
+    adm_44:g('cf-adm-44'),adm_sup:g('cf-adm-sup'),adm_dia:g('cf-adm-dia'),serv_gerais:g('cf-serv'),
+    cesta:g('cf-cesta'),vr_8h:g('cf-vr8'),vr_7h:g('cf-vr7'),vr_6h:g('cf-vr6'),vr_4h:g('cf-vr4'),
+    anuenio:g('cf-anu'),vale_transporte:g('cf-vt'),adic_noturno:g('cf-not'),
+    quebra_caixa:g('cf-qcx'),bsf:g('cf-bsf'),outros:g('cf-outros'),cont_assist:g('cf-cont-assist'),cont_patronal:g('cf-cont-patronal'),cont_laboral:g('cf-cont-laboral'),
+  };
+  let error;
+  if(currentEditId.cct){
+    ({error}=await sb.from('pisos').update(payload).eq('id',currentEditId.cct));
+  } else {
+    ({error}=await sb.from('pisos').upsert({...payload},{onConflict:'ano,uf,abrangencia,tipo,grupo'}));
+  }
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('CCT salva!');await loadCCTList();
+};
+
+// ════════════════ SINDICATOS ════════════════
+async function renderSindList(){
+  const {data}=await sb.from('sindicatos').select('*').order('uf');
+  sindicatos=data||[];
+  populateSindSelects(['as-sind-sel','cf-sind-lab','cf-sind-pat','nf-sind']);
+  const el=document.getElementById('sind-list');
+  if(!sindicatos.length){el.innerHTML='<div class="empty">Nenhum sindicato cadastrado.</div>';return;}
+  el.innerHTML=sindicatos.map(s=>`
+    <div class="rec-item ${currentEditId.sind===s.id?'editing-active':''}" onclick="editSind(${s.id})">
+      <div class="rec-info">
+        <div class="rec-title">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700">${s.sigla||'—'}</span>
+          — ${s.nome}
+          <span class="badge ${s.tipo==='laboral'?'b-neg':'b-warn'} " style="margin-left:4px">${s.tipo==='laboral'?'Laboral':'Patronal'}</span>
+        </div>
+        <div class="rec-sub">${s.uf}${s.regiao?' · '+s.regiao:''} · ${ABRANG[s.abrangencia]||''} · ${s.cobertura||''} · ${s.cnpj||''}</div>
+        <div class="rec-hint">Clique para editar</div>
+      </div>
+      <button class="btn btn-danger btn-sm" style="flex-shrink:0" onclick="event.stopPropagation();delSind(${s.id})">Excluir</button>
+    </div>`).join('');
+}
+
+window.editSind=async function(id){
+  const s=sindicatos.find(x=>x.id===id);if(!s)return;
+  currentEditId.sind=id;
+  document.getElementById('sind-form-title').textContent=`Editando: ${s.sigla||s.nome}`;
+  document.getElementById('sind-cancel').style.display='block';
+  document.getElementById('si-uf').value=s.uf;
+  setVal('si-regiao',s.regiao);setVal('si-nome',s.nome);setVal('si-sigla',s.sigla);
+  setVal('si-cnpj',s.cnpj);
+  document.getElementById('si-tipo').value=s.tipo||'laboral';
+  document.getElementById('si-abrang').value=s.abrangencia||'todas';
+  const cob=document.getElementById('si-cobertura');if(cob)cob.value=s.cobertura||'Estado';
+  setVal('si-tel',s.telefone);setVal('si-email',s.email);setVal('si-obs',s.observacoes);
+  window.scrollTo({top:0,behavior:'smooth'});
+  toast('Sindicato carregado. Edite e salve.','info');
+};
+
+window.cancelEditSind=function(){
+  currentEditId.sind=null;
+  document.getElementById('sind-form-title').textContent='Novo sindicato';
+  document.getElementById('sind-cancel').style.display='none';
+  ['si-regiao','si-sigla','si-nome','si-cnpj','si-tel','si-email','si-obs'].forEach(id=>setVal(id,''));
+};
+
+window.saveSind=async function(){
+  const uf=getVal('si-uf');const nome=getVal('si-nome');
+  if(!uf||!nome){toast('Estado e nome são obrigatórios.','err');return;}
+  const payload={
+    uf,regiao:getVal('si-regiao'),nome,sigla:getVal('si-sigla'),cnpj:getVal('si-cnpj'),
+    tipo:getVal('si-tipo')||'laboral',abrangencia:getVal('si-abrang')||'todas',
+    cobertura:getVal('si-cobertura')||'Estado',
+    telefone:getVal('si-tel'),email:getVal('si-email'),observacoes:getVal('si-obs'),
+  };
+  let error;
+  if(currentEditId.sind){
+    ({error}=await sb.from('sindicatos').update(payload).eq('id',currentEditId.sind));
+  } else {
+    ({error}=await sb.from('sindicatos').insert(payload));
+  }
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast(currentEditId.sind?'Sindicato atualizado!':'Sindicato salvo!');
+  cancelEditSind();await renderSindList();
+};
+
+window.delSind=async function(id){
+  if(!confirm('Excluir este sindicato?'))return;
+  const {error}=await sb.from('sindicatos').delete().eq('id',id);
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('Excluído.');await renderSindList();
+};
+
+// ════════════════ ENCONTROS ════════════════
+async function renderEncList(){
+  const {data}=await sb.from('encontros').select('*').order('data_iso',{ascending:false});
+  const rows=data||[];
+  const el=document.getElementById('enc-list');
+  if(!rows.length){el.innerHTML='<div class="empty">Nenhum encontro cadastrado.</div>';return;}
+  const stC={realizado:'b-ok',cancelado:'b-red',pendente:'b-gray'};
+  const stL={realizado:'Realizado',cancelado:'Cancelado',pendente:'Pendente'};
+  el.innerHTML=rows.map(e=>`
+    <div class="rec-item ${currentEditId.enc===e.id?'editing-active':''}" onclick="editEncontro(${e.id})">
+      <div class="rec-info">
+        <div class="rec-title">
+          ${parseLocalDate(e.data_iso).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
+          <span class="badge ${stC[e.status]}">${stL[e.status]}</span>
+        </div>
+        <div class="rec-sub">${e.obs||''}${e.link_ata?` · <a href="${e.link_ata}" target="_blank" style="color:var(--brand)" onclick="event.stopPropagation()">Ata ↗</a>`:''}</div>
+        <div class="rec-hint">Clique para editar</div>
+      </div>
+      <button class="btn btn-danger btn-sm" style="flex-shrink:0" onclick="event.stopPropagation();delEncontro(${e.id})">Excluir</button>
+    </div>`).join('');
+}
+
+window.editEncontro=async function(id){
+  const {data}=await sb.from('encontros').select('*').eq('id',id).single();
+  if(!data)return;
+  currentEditId.enc=id;
+  document.getElementById('enc-form-title').textContent=`Editando: ${parseLocalDate(data.data_iso).toLocaleDateString('pt-BR')}`;
+  document.getElementById('enc-cancel').style.display='block';
+  setVal('en-data',data.data_iso);
+  document.getElementById('en-status').value=data.status||'realizado';
+  setVal('en-ata',data.link_ata);setVal('en-obs',data.obs);
+  window.scrollTo({top:0,behavior:'smooth'});
+  toast('Encontro carregado. Edite e salve.','info');
+};
+
+window.cancelEditEncontro=function(){
+  currentEditId.enc=null;
+  document.getElementById('enc-form-title').textContent='Registrar encontro';
+  document.getElementById('enc-cancel').style.display='none';
+  ['en-data','en-ata','en-obs'].forEach(id=>setVal(id,''));
+};
+
+window.saveEncontro=async function(){
+  const data_iso=getVal('en-data');if(!data_iso){toast('Data obrigatória.','err');return;}
+  const payload={
+    data_iso,status:getVal('en-status')||'realizado',
+    link_ata:getVal('en-ata'),obs:getVal('en-obs'),
+  };
+  let error;
+  if(currentEditId.enc){
+    ({error}=await sb.from('encontros').update(payload).eq('id',currentEditId.enc));
+  } else {
+    ({error}=await sb.from('encontros').insert(payload));
+  }
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast(currentEditId.enc?'Encontro atualizado!':'Encontro salvo!');
+  cancelEditEncontro();await renderEncList();
+};
+
+window.delEncontro=async function(id){
+  if(!confirm('Excluir este encontro?'))return;
+  const {error}=await sb.from('encontros').delete().eq('id',id);
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('Excluído.');await renderEncList();
+};
+
+
+// ════════════════ ASSEMBLEIAS VINCULADAS À NEGOCIAÇÃO ════════════════
+window.loadAssembleiasNeg = async function(){
+  const section = document.getElementById('neg-assembleias-section');
+  const listEl  = document.getElementById('neg-assembleias-list');
+  if(!section||!listEl) return;
+
+  const uf      = document.getElementById('n-uf')?.value || '';
+  const sindId = document.getElementById('nf-sind')?.value || '';
+
+  if(!uf && !sindId){
+    section.style.display='none'; return;
+  }
+  section.style.display='block';
+  listEl.innerHTML='<span style="color:var(--text-3);font-size:12px">Carregando...</span>';
+
+  // Buscar assembleias do estado selecionado
+  let query = sb.from('assembleias').select('*').order('data_iso', {ascending:false});
+  if(uf) query = query.eq('uf', uf);
+
+  const {data, error} = await query;
+  if(error || !data?.length){
+    listEl.innerHTML='<span style="color:var(--text-3);font-size:12px">Nenhuma assembleia encontrada para este estado.</span>';
+    return;
+  }
+
+  // Filtrar por sindicato se selecionado
+  let assembleias = data;
+  if(sindId){
+    assembleias = data.filter(a =>
+      a.sindicato_id === parseInt(sindId) || !a.sindicato_id
+    );
+  }
+
+  if(!assembleias.length){
+    listEl.innerHTML='<span style="color:var(--text-3);font-size:12px">Nenhuma assembleia vinculada a estes sindicatos.</span>';
+    return;
+  }
+
+  const modalClass = {presencial:'modal-p', hibrida:'modal-h', remota:'modal-r'};
+  const modalLabel = {presencial:'Presencial', hibrida:'Híbrida', remota:'Remota'};
+
+  listEl.innerHTML = assembleias.map(a => {
+    const [y,m,d] = a.data_iso.split('-');
+    const dateStr = `${d}/${m}/${y}`;
+    const ataLink = a.link_ata
+      ? `<a href="${a.link_ata}" target="_blank" class="btn btn-ghost btn-sm">Ata ↗</a>` : '';
+    const pautaLink = a.link_pauta
+      ? `<a href="${a.link_pauta}" target="_blank" class="btn btn-ghost btn-sm">Pauta ↗</a>` : '';
+    const modal = a.modalidade || 'remota';
+    return `<div class="neg-assemb-item">
+      <div class="neg-assemb-date">${dateStr}</div>
+      <div class="neg-assemb-info">
+        <div class="neg-assemb-titulo">
+          ${a.tipo}
+          <span class="neg-assemb-modal ${modalClass[modal]}">${modalLabel[modal]}</span>
+          ${a.hora ? `<span style="font-size:11px;color:var(--text-2)">${a.hora}</span>` : ''}
+        </div>
+        <div class="neg-assemb-sub">${a.sindicato_nome||''} ${a.neg_pct?'· '+a.neg_pct:''}</div>
+        ${a.resumo ? `<div class="neg-assemb-sub">${a.resumo.substring(0,120)}${a.resumo.length>120?'…':''}</div>` : ''}
+        ${ataLink||pautaLink ? `<div class="neg-assemb-links">${ataLink}${pautaLink}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+};
+
+
+window.toggleTodosAviso = function(){
+  const uf = document.getElementById('as-uf')?.value;
+  const aviso = document.getElementById('todos-aviso');
+  if(aviso) aviso.style.display = uf==='TODOS' ? 'block' : 'none';
+};
+
+// ── MAPA SINDICAL (admin) ──
+const ESTADOS_ADM=[
+  {uf:"AC",nome:"Acre",reg:"norte"},{uf:"AL",nome:"Alagoas",reg:"nordeste"},
+  {uf:"AM",nome:"Amazonas",reg:"norte"},{uf:"AP",nome:"Amapá",reg:"norte"},
+  {uf:"BA",nome:"Bahia",reg:"nordeste"},{uf:"CE",nome:"Ceará",reg:"nordeste"},
+  {uf:"DF",nome:"Distrito Federal",reg:"centro"},{uf:"ES",nome:"Espírito Santo",reg:"sudeste"},
+  {uf:"GO",nome:"Goiás",reg:"centro"},{uf:"MA",nome:"Maranhão",reg:"nordeste"},
+  {uf:"MG",nome:"Minas Gerais",reg:"sudeste"},{uf:"MS",nome:"Mato Grosso do Sul",reg:"centro"},
+  {uf:"MT",nome:"Mato Grosso",reg:"centro"},{uf:"PA",nome:"Pará",reg:"norte"},
+  {uf:"PB",nome:"Paraíba",reg:"nordeste"},{uf:"PE",nome:"Pernambuco",reg:"nordeste"},
+  {uf:"PI",nome:"Piauí",reg:"nordeste"},{uf:"PR",nome:"Paraná",reg:"sul"},
+  {uf:"RJ",nome:"Rio de Janeiro",reg:"sudeste"},{uf:"RN",nome:"Rio Grande do Norte",reg:"nordeste"},
+  {uf:"RO",nome:"Rondônia",reg:"norte"},{uf:"RR",nome:"Roraima",reg:"norte"},
+  {uf:"RS",nome:"Rio Grande do Sul",reg:"sul"},{uf:"SC",nome:"Santa Catarina",reg:"sul"},
+  {uf:"SE",nome:"Sergipe",reg:"nordeste"},{uf:"SP",nome:"São Paulo",reg:"sudeste"},
+  {uf:"TO",nome:"Tocantins",reg:"norte"}
+];
+const ST_BADGE_ADM={negociacao:"b-neg",aguardando:"b-warn",sem_acordo:"b-red",concluido:"b-ok"};
+const ST_LABEL_ADM={negociacao:"Em negociação",aguardando:"Aguardando data base",sem_acordo:"Sem acordo",concluido:"Acordo finalizado"};
+const MODAL_CLS_ADM={presencial:'chip-presencial',hibrida:'chip-hibrida',remota:'chip-remota'};
+const MODAL_LBL_ADM={presencial:'Presencial',hibrida:'Híbrida',remota:'Remota'};
+const TIPO_CLS_ADM={Assembleia:'b-neg','Reunião de negociação':'b-warn',Homologação:'b-ok',Audiência:'b-purple',Outro:'b-gray'};
+
+window.renderAdmMapa=async function(){
+  const ano   = parseInt(document.getElementById('adm-mapa-ano')?.value||2026);
+  const reg   = document.getElementById('adm-mapa-reg')?.value||'';
+  const srch  = (document.getElementById('adm-mapa-search')?.value||'').toLowerCase();
+  const body  = document.getElementById('adm-mapa-body');
+  const ldg   = document.getElementById('adm-mapa-loading');
+  if(!body) return;
+  if(ldg) ldg.textContent='Carregando…';
+
+  const [rNegs,rCCTs,rSinds,rAssemb] = await Promise.all([
+    sb.from('negociacoes').select('*').eq('ano',ano),
+    sb.from('pisos').select('*').eq('ano',ano),
+    sb.from('sindicatos').select('*').order('uf'),
+    sb.from('assembleias').select('*').order('data_iso'),
+  ]);
+  if(ldg) ldg.textContent='';
+  const negsAll   = rNegs.data  ||[];
+  const cctsAll   = rCCTs.data  ||[];
+  const sindsAll  = rSinds.data ||[];
+  const assembAll = rAssemb.data||[];
+  const getSindA  = id=>sindsAll.find(s=>s.id===id)||null;
+
+  const REGIOES=[
+    {valor:'norte',label:'Norte'},{valor:'nordeste',label:'Nordeste'},
+    {valor:'centro',label:'Centro-Oeste'},{valor:'sudeste',label:'Sudeste'},{valor:'sul',label:'Sul'},
+  ];
+  const regsShow = reg ? REGIOES.filter(r=>r.valor===reg) : REGIOES;
+
+  body.innerHTML = regsShow.map(region=>{
+    const states = ESTADOS_ADM.filter(e=>{
+      if(e.reg!==region.valor) return false;
+      if(srch&&!e.nome.toLowerCase().includes(srch)&&!e.uf.toLowerCase().includes(srch)) return false;
+      return true;
+    });
+    if(!states.length) return '';
+
+    const cards = states.map(e=>{
+      const ccts     = cctsAll.filter(c=>c.uf===e.uf);
+      const negs     = negsAll.filter(n=>n.uf===e.uf);
+      const laborais = sindsAll.filter(s=>s.uf===e.uf&&s.tipo==='laboral');
+      const patronais= sindsAll.filter(s=>s.uf===e.uf&&s.tipo==='patronal');
+      const assembls = assembAll
+        .filter(a=>a.uf===e.uf&&a.data_iso&&a.data_iso.startsWith(String(ano)))
+        .sort((a,b)=>a.data_iso.localeCompare(b.data_iso));
+
+      // ── CCT rows ──
+      const mkSindA=(s,papel)=>{
+        const color=papel==='lab'?'var(--green)':'var(--orange)';
+        const label=papel==='lab'?'Laboral':'Patronal';
+        if(!s) return `<span style="font-size:11px;color:var(--text-3);font-style:italic">${label}: não vinculado</span>`;
+        return `<span style="font-size:11px"><span style="font-weight:700;color:${color}">${label}:</span> ${s.sigla||s.nome}${s.cnpj?` <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-3)">${s.cnpj}</span>`:''}</span>`;
+      };
+
+      let cctHtml='';
+      if(ccts.length){
+        cctHtml=ccts.map(cct=>{
+          const lab=getSindA(cct.sind_lab_id);
+          const pat=getSindA(cct.sind_pat_id);
+          const neg=negs.find(n=>n.funcao===cct.abrangencia)||negs.find(n=>n.funcao==='todas')||negs[0]||{};
+          const st_=neg.status||'aguardando';
+          const pct=neg.percentual||cct.pct;
+          const abrangH=cct.abrangencia==='ef'?`<span class="badge b-teal">Educ. Física</span>`
+            :cct.abrangencia==='adm'?`<span class="badge b-orange">Administrativo</span>`
+            :`<span class="badge b-purple">Todas as funções</span>`;
+          const tipoH=cct.tipo?`<span class="badge b-gray" style="font-size:9px">${cct.tipo}</span>`:'';
+          const pctH=pct?`<span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--brand)">${pct}%</span>`:'';
+          const dbH=cct.data_base?`<span style="font-size:10px;color:var(--text-3)">Base: <strong style="color:var(--text)">${cct.data_base}</strong></span>`:'';
+          const linksH=[
+            cct.link_cct?`<a href="${cct.link_cct}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px">CCT ↗</a>`:'',
+            cct.link_adi?`<a href="${cct.link_adi}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px">Aditivo ↗</a>`:'',
+          ].filter(Boolean).join('');
+          return `<div class="adm-mapa-cct">
+            <div class="adm-mapa-cct-meta">
+              ${abrangH}${tipoH}
+              <span class="badge ${ST_BADGE_ADM[st_]}">${ST_LABEL_ADM[st_]}</span>
+              ${pctH}${dbH}${linksH}
+              <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;margin-left:auto" onclick="setAdmNav('ccts',document.querySelector('.nav-item:nth-child(4)'));setTimeout(()=>loadCCTList(),100)">Editar CCT →</button>
+            </div>
+            <div class="adm-mapa-cct-body">
+              <div class="adm-mapa-sind-row">${mkSindA(lab,'lab')}</div>
+              <div class="adm-mapa-sind-row">${mkSindA(pat,'pat')}</div>
+            </div>
+          </div>`;
+        }).join('');
+      } else if(laborais.length||patronais.length){
+        const all=[...laborais.map(s=>({...s,papel:'laboral'})),...patronais.map(s=>({...s,papel:'patronal'}))];
+        const stH=negs.length?`<span class="badge ${ST_BADGE_ADM[negs[0].status||'aguardando']}">${ST_LABEL_ADM[negs[0].status||'aguardando']}</span>`:'';
+        cctHtml=`<div class="adm-mapa-cct">
+          <div class="adm-mapa-cct-meta"><span class="badge b-gray">Sem CCT em ${ano}</span>${stH}</div>
+          <div class="adm-mapa-cct-body">
+            ${all.map(s=>`<div class="adm-mapa-sind-row">
+              <span class="badge ${s.papel==='laboral'?'b-neg':'b-warn'}" style="font-size:9px">${s.papel==='laboral'?'Laboral':'Patronal'}</span>
+              <span style="font-size:12px;font-weight:600">${s.sigla||s.nome}</span>
+            </div>`).join('')}
+          </div>
+        </div>`;
+      } else {
+        cctHtml=`<div class="adm-mapa-empty">Sem sindicatos ou CCTs cadastrados</div>`;
+      }
+
+      // ── Assembleias ──
+      const uid=e.uf.toLowerCase()+'_adm';
+      let assembHtml='';
+      if(assembls.length){
+        const nViagem=assembls.filter(a=>a.viagem).length;
+        const rows=assembls.map(a=>{
+          const [ay,am,ad]=a.data_iso.split('-');
+          const dateStr=`${ad}/${am}/${ay}`;
+          const viagemH=a.viagem?`<span class="viagem-chip">✈ Viagem</span>`:`<span class="sem-viagem-chip">Remota</span>`;
+          const modalH=a.modalidade?`<span class="badge ${TIPO_CLS_ADM[a.tipo]||'b-gray'}" style="font-size:9px">${a.tipo||'Evento'}</span>`:'';
+          const horaH=a.hora?`<span style="font-size:10px;color:var(--text-3)">${a.hora}</span>`:'';
+          const sindH=a.sindicato_nome?`<span style="font-size:10px;color:var(--text-2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.sindicato_nome}</span>`:'';
+          const ataH=a.link_ata?`<a href="${a.link_ata}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px">Ata ↗</a>`:'';
+          return `<div class="adm-mapa-assemb-row">
+            <span class="adm-assemb-date">${dateStr}</span>${horaH}${modalH}${viagemH}${sindH}${ataH}
+            <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px" onclick="editAssembleia(${a.id})">Editar</button>
+          </div>`;
+        }).join('');
+        const toggleLabel=`${assembls.length} assembleia${assembls.length>1?'s':''}${nViagem?` · ✈ ${nViagem} viagem${nViagem>1?'ns':''}`:''}`;
+        assembHtml=`
+          <div class="adm-mapa-assemb-toggle" id="atog-${uid}" onclick="toggleAdmAssemb('${uid}')">
+            <span class="tog-icon">▶</span><span>${toggleLabel}</span>
+          </div>
+          <div class="adm-mapa-assemb-list" id="alist-${uid}">${rows}</div>`;
+      }
+
+      // ── Ações rápidas ──
+      const actionsHtml=`<div class="adm-mapa-actions">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="goAdmCCTs('${e.uf}')">+ Nova CCT</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="goAdmAssemb('${e.uf}')">+ Nova assembleia</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="goAdmNegs('${e.uf}')">Ver negociações</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="goAdmSinds('${e.uf}')">Ver sindicatos</button>
+      </div>`;
+
+      const nCCTs=ccts.length;
+      const badge=nCCTs>1?`<span class="badge b-purple" style="font-size:9px">${nCCTs} CCTs</span>`
+        :nCCTs===1?`<span class="badge b-neg" style="font-size:9px">1 CCT</span>`
+        :(laborais.length||patronais.length)?`<span style="font-size:10px;color:var(--text-3)">${laborais.length}L · ${patronais.length}P</span>`
+        :`<span class="badge b-red" style="font-size:9px">Sem dados</span>`;
+
+      return `<div class="adm-mapa-card">
+        <div class="adm-mapa-card-hd">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="font-size:13px;font-weight:600">${e.nome}</span>
+            <span style="font-size:11px;font-family:'JetBrains Mono',monospace;background:var(--surface);border:0.5px solid var(--border-md);border-radius:4px;padding:2px 7px;color:var(--text-2)">${e.uf}</span>
+          </div>
+          ${badge}
+        </div>
+        ${actionsHtml}
+        ${cctHtml}
+        ${assembHtml}
+      </div>`;
+    }).join('');
+
+    return `<div>
+      <div class="adm-mapa-reg-hd">${region.label}</div>
+      <div class="adm-mapa-grid">${cards}</div>
+    </div>`;
+  }).join('');
+};
+
+window.toggleAdmAssemb=function(uid){
+  const tog=document.getElementById('atog-'+uid);
+  const lst=document.getElementById('alist-'+uid);
+  if(!tog||!lst) return;
+  const open=lst.classList.toggle('open');
+  tog.classList.toggle('open',open);
+};
+
+// Helpers de navegação rápida do Mapa Admin
+// índices em querySelectorAll('.nav-item'): 0=Negociações,1=Assembleias,2=CCTs,3=Sindicatos,4=Encontros,5=Mapa
+window.goAdmCCTs=function(uf){
+  const btn=document.querySelectorAll('#admin-panel .nav-item')[2];
+  if(btn) setAdmNav('ccts',btn);
+  setTimeout(()=>{const sel=document.getElementById('cct-uf');if(sel){sel.value=uf;loadCCTList();}},150);
+};
+window.goAdmAssemb=function(uf){
+  const btn=document.querySelectorAll('#admin-panel .nav-item')[1];
+  if(btn) setAdmNav('assembleias',btn);
+  setTimeout(()=>{const sel=document.getElementById('as-uf');if(sel){sel.value=uf;renderAssemblList();}},150);
+};
+window.goAdmNegs=function(uf){
+  const btn=document.querySelectorAll('#admin-panel .nav-item')[0];
+  if(btn) setAdmNav('negociacoes',btn);
+  setTimeout(()=>{const sel=document.getElementById('n-uf');if(sel){sel.value=uf;loadNegForm();}},150);
+};
+window.goAdmSinds=function(uf){
+  const btn=document.querySelectorAll('#admin-panel .nav-item')[3];
+  if(btn) setAdmNav('sindicatos',btn);
+  setTimeout(()=>{const sel=document.getElementById('sind-uf-f');if(sel){sel.value=uf;renderSindList();}},150);
+};
+
+window.saveResumoMes=async function(){
+  const mes_ano=getVal('rm-mes');const link=getVal('rm-link');
+  if(!mes_ano||!link){toast('Mês e link são obrigatórios.','err');return;}
+  const {error}=await sb.from('resumos_mes').upsert({mes_ano,link},{onConflict:'mes_ano'});
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('Resumo do mês salvo!');
+  setVal('rm-mes','');setVal('rm-link','');
+};
+</script>
+</body>
+</html>
