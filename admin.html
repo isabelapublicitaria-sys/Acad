@@ -159,6 +159,7 @@ label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercas
     <button class="nav-item" onclick="setAdmNav('assembleias',this)"><span style="font-size:14px;width:18px;text-align:center">◷</span> Assembleias</button>
     <button class="nav-item" onclick="setAdmNav('ccts',this)"><span style="font-size:14px;width:18px;text-align:center">§</span> CCTs e pisos</button>
     <button class="nav-item" onclick="setAdmNav('sindicatos',this)"><span style="font-size:14px;width:18px;text-align:center">⊞</span> Sindicatos</button>
+    <button class="nav-item" onclick="setAdmNav('grupos',this)"><span style="font-size:14px;width:18px;text-align:center">⇌</span> Grupos de sindicatos</button>
     <button class="nav-item" onclick="setAdmNav('encontros',this)"><span style="font-size:14px;width:18px;text-align:center">≡</span> Encontros ACAD</button>
     <div class="nav-label" style="margin-top:6px">Visão geral</div>
     <button class="nav-item" onclick="setAdmNav('mapa',this)"><span style="font-size:14px;width:18px;text-align:center">◈</span> Mapa Sindical</button>
@@ -378,6 +379,53 @@ label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercas
     </div>
   </div>
 
+  <!-- GRUPOS DE SINDICATOS -->
+  <div id="adm-grupos" class="hidden">
+    <div class="topbar"><div class="page-title">Grupos de sindicatos por estado</div></div>
+    <div class="sf-bar">
+      <select class="sf-sel" id="gr-ano" onchange="renderGrupos()"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option></select>
+      <select class="sf-sel" id="gr-uf" onchange="renderGrupos()"><option value="">Selecione o estado...</option></select>
+    </div>
+    <div class="form-wrap">
+      <div class="fsection">
+        <div class="fsection-head">Adicionar par de sindicatos</div>
+        <div class="fgrid g2">
+          <div class="field">
+            <label>Sindicato laboral</label>
+            <select id="gr-lab"><option value="">— sem sindicato —</option></select>
+          </div>
+          <div class="field">
+            <label>Sindicato patronal</label>
+            <select id="gr-pat"><option value="">— sem sindicato —</option></select>
+          </div>
+          <div class="field">
+            <label>Abrangência (funções)</label>
+            <select id="gr-abrang">
+              <option value="todas">Todas as funções</option>
+              <option value="ef">Educ. Física</option>
+              <option value="adm">Administrativo</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Cobertura</label>
+            <select id="gr-tipo"><option>Estado</option><option>Município</option><option>Estado/Município</option></select>
+          </div>
+          <div class="field">
+            <label>Identificador do grupo <span style="font-size:10px;color:var(--text-3);font-weight:400">(quando há mais de 1 par por estado)</span></label>
+            <input type="text" id="gr-grupo" value="principal" placeholder="principal">
+          </div>
+          <div class="field" style="align-self:end">
+            <button class="btn btn-primary" style="width:100%" onclick="saveGrupo()">Adicionar par</button>
+          </div>
+        </div>
+      </div>
+      <div class="fsection">
+        <div class="fsection-head" id="grupos-head">Pares cadastrados</div>
+        <div id="grupos-list"><div class="empty">Selecione um estado para ver os pares.</div></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ENCONTROS -->
   <div id="adm-encontros" class="hidden">
     <div class="topbar"><div class="page-title">Encontros semanais ACAD</div></div>
@@ -553,7 +601,7 @@ sb.auth.getSession().then(({data:{session}})=>{
 });
 
 async function initAdmin(){
-  populateUFs(['n-uf','as-uf','si-uf','ca-uf']);
+  populateUFs(['n-uf','as-uf','si-uf','ca-uf','gr-uf']);
 
   // Carregar config do Supabase
   const {data:cfgData}=await sb.from('config').select('*');
@@ -606,7 +654,7 @@ async function initAdmin(){
   }
   const {data}=await sb.from('sindicatos').select('*').order('uf');
   sindicatos=data||[];
-  populateSindSelects(['as-sind-sel','cf-sind-lab','cf-sind-pat','nf-sind']);
+  populateSindSelects(['as-sind-sel','cf-sind-lab','cf-sind-pat','nf-sind','gr-lab','gr-pat']);
   renderSindList();
   renderAssemblList();
   renderEncList();
@@ -618,12 +666,13 @@ async function initAdmin(){
 window.setAdmNav=function(n,el){
   document.querySelectorAll('#admin-panel .nav-item').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
-  ['negociacoes','assembleias','ccts','sindicatos','encontros','mapa'].forEach(v=>
+  ['negociacoes','assembleias','ccts','sindicatos','grupos','encontros','mapa'].forEach(v=>
     document.getElementById('adm-'+v).classList.toggle('hidden',v!==n));
   if(n==='negociacoes') loadNegList();
   if(n==='ccts')        loadCCTList();
   if(n==='assembleias') renderAssemblList();
   if(n==='sindicatos')  renderSindList();
+  if(n==='grupos')      renderGrupos();
   if(n==='encontros')   renderEncList();
   if(n==='mapa')        renderAdmMapa();
 };
@@ -1048,6 +1097,71 @@ window.delSind=async function(id){
   const {error}=await sb.from('sindicatos').delete().eq('id',id);
   if(error){toast('Erro: '+error.message,'err');return;}
   toast('Excluído.');await renderSindList();
+};
+
+// ════════════════ GRUPOS DE SINDICATOS ════════════════
+window.renderGrupos=async function(){
+  const uf=getVal('gr-uf');
+  const ano=parseInt(document.getElementById('gr-ano')?.value||2026);
+  const el=document.getElementById('grupos-list');
+  const hd=document.getElementById('grupos-head');
+  if(!uf){el.innerHTML='<div class="empty">Selecione um estado para ver os pares.</div>';return;}
+  el.innerHTML='<div class="empty" style="color:var(--text-3)">Carregando...</div>';
+  const {data,error}=await sb.from('pisos').select('*').eq('ano',ano).eq('uf',uf).order('abrangencia');
+  if(error){el.innerHTML=`<div class="empty" style="color:var(--red)">Erro: ${error.message}</div>`;return;}
+  const rows=data||[];
+  const estNome=ESTADOS.find(e=>e.uf===uf)?.nome||uf;
+  if(hd)hd.textContent=`Pares cadastrados — ${estNome} / ${ano}`;
+  if(!rows.length){el.innerHTML='<div class="empty">Nenhum par para este estado. Use o formulário acima para adicionar.</div>';return;}
+  const ABRANG_LBL={todas:'Todas as funções',ef:'Educ. Física',adm:'Administrativo'};
+  el.innerHTML=rows.map(r=>{
+    const lab=sindicatos.find(s=>s.id===r.sind_lab_id);
+    const pat=sindicatos.find(s=>s.id===r.sind_pat_id);
+    const labTxt=lab?`<strong style="color:var(--green)">${lab.sigla||lab.nome}</strong><span style="font-size:10px;color:var(--text-3);font-family:'JetBrains Mono',monospace"> ${lab.cnpj||''}</span>`
+      :'<span style="color:var(--text-3);font-style:italic">— não vinculado —</span>';
+    const patTxt=pat?`<strong style="color:var(--orange)">${pat.sigla||pat.nome}</strong><span style="font-size:10px;color:var(--text-3);font-family:'JetBrains Mono',monospace"> ${pat.cnpj||''}</span>`
+      :'<span style="color:var(--text-3);font-style:italic">— não vinculado —</span>';
+    return`<div class="rec-item">
+      <div class="rec-info">
+        <div class="rec-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="badge b-neg" style="font-size:9px">Laboral</span>${labTxt}
+          <span style="color:var(--text-3);font-weight:700">×</span>
+          <span class="badge b-warn" style="font-size:9px">Patronal</span>${patTxt}
+        </div>
+        <div class="rec-sub">${ABRANG_LBL[r.abrangencia]||r.abrangencia||'Todas'} · ${r.tipo||'Estado'} · grupo: <strong>${r.grupo||'principal'}</strong></div>
+      </div>
+      <button class="btn btn-danger btn-sm" style="flex-shrink:0" onclick="delGrupo(${r.id})">Excluir</button>
+    </div>`;
+  }).join('');
+};
+
+window.saveGrupo=async function(){
+  const uf=getVal('gr-uf');
+  const ano=parseInt(document.getElementById('gr-ano')?.value||2026);
+  if(!uf){toast('Selecione um estado.','err');return;}
+  const lab=getVal('gr-lab');
+  const pat=getVal('gr-pat');
+  if(!lab&&!pat){toast('Selecione ao menos um sindicato.','err');return;}
+  const payload={
+    ano,uf,
+    sind_lab_id:lab?parseInt(lab):null,
+    sind_pat_id:pat?parseInt(pat):null,
+    abrangencia:getVal('gr-abrang')||'todas',
+    tipo:getVal('gr-tipo')||'Estado',
+    grupo:getVal('gr-grupo')||'principal',
+  };
+  const {error}=await sb.from('pisos').upsert(payload,{onConflict:'ano,uf,abrangencia,tipo,grupo'});
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('Par salvo!');
+  renderGrupos();
+};
+
+window.delGrupo=async function(id){
+  if(!confirm('Excluir este par?'))return;
+  const {error}=await sb.from('pisos').delete().eq('id',id);
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('Par excluído.');
+  renderGrupos();
 };
 
 // ════════════════ ENCONTROS ════════════════
