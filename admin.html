@@ -893,24 +893,9 @@ window.loadCCTList=async function(){
         <div class="rec-hint">Clique para editar</div>
       </div>
       <button class="btn btn-danger btn-sm" style="flex-shrink:0"
-        onclick="event.stopPropagation();delNeg(${n.id})">Excluir</button>
+        onclick="event.stopPropagation();delCCT(${c.id})">Excluir</button>
     </div>`).join('');
 };
-
-window.delNeg=async function(id){
-  if(!confirm('Excluir esta negociação?'))return;
-  const {error}=await sb.from('negociacoes').delete().eq('id',id);
-  if(error){toast('Erro: '+error.message,'err');return;}
-  toast('Negociação excluída.');
-  if(currentEditId.neg===id){
-    currentEditId.neg=null;
-    document.getElementById('neg-form').style.display='none';
-    document.getElementById('neg-cancel').style.display='none';
-    document.getElementById('n-uf').value='';
-  }
-  await loadNegList();
-};
-
 
 window.delCCT=async function(id){
   if(!confirm('Excluir esta CCT?'))return;
