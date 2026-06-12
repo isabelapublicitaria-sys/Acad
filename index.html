@@ -63,7 +63,7 @@ input[type=text]{width:155px}
 .lbtn{font-size:11px;padding:3px 9px;border:0.5px solid var(--border-md);border-radius:5px;color:var(--brand);background:var(--surface);cursor:pointer;text-decoration:none;display:inline-block}
 .lbtn:hover{background:var(--brand-light);text-decoration:none}
 /* CARDS */
-.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;padding:16px 20px}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(480px,1fr));gap:12px;padding:16px 20px}
 .card{background:var(--surface);border:0.5px solid var(--border-md);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow)}
 .card-head{padding:11px 14px;background:var(--bg);border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
 .card-nome{font-size:14px;font-weight:600}
@@ -484,6 +484,12 @@ input[type=text]{width:155px}
           <option value="centro">Centro-Oeste</option>
           <option value="sudeste">Sudeste</option>
           <option value="sul">Sul</option>
+        </select>
+        <select id="mapa-status-f" onchange="renderMapa()">
+          <option value="">Todos os status</option>
+          <option value="concluido">Acordo finalizado</option>
+          <option value="negociacao">Em negociação</option>
+          <option value="aguardando">Aguardando data base</option>
         </select>
         <input type="text" id="mapa-search" placeholder="Buscar estado..." oninput="renderMapa()" style="width:140px">
       </div>
@@ -1429,8 +1435,9 @@ const SINDICATOS_BASE=[
 
 // ── MAPA SINDICAL ──
 function renderMapa(){
-  const srch = (document.getElementById('mapa-search')?.value||'').toLowerCase();
-  const reg  = document.getElementById('mapa-reg-f')?.value||'';
+  const srch    = (document.getElementById('mapa-search')?.value||'').toLowerCase();
+  const reg     = document.getElementById('mapa-reg-f')?.value||'';
+  const statusF = document.getElementById('mapa-status-f')?.value||'';
   const body = document.getElementById('mapa-body');
   if(!body) return;
 
@@ -1455,6 +1462,7 @@ function renderMapa(){
   const statesMapa = ESTADOS.filter(e=>{
     if(reg && e.reg!==reg) return false;
     if(srch&&!e.nome.toLowerCase().includes(srch)&&!e.uf.toLowerCase().includes(srch)) return false;
+    if(statusF && !DATA.negociacoes.some(n=>n.ano===currentYear&&n.uf===e.uf&&n.status===statusF)) return false;
     return true;
   }).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
 
