@@ -963,9 +963,11 @@ function renderCCTs(){
           const lab=c.sind_lab_id?getSind(c.sind_lab_id):null;
           const pat=c.sind_pat_id?getSind(c.sind_pat_id):null;
           const cGrupo=c.grupo||'principal';
-          // Casa pelo par exato (funcao+tipo+grupo) primeiro — necessário
-          // quando 2 CCTs do mesmo estado compartilham Abrangência/Tipo.
-          const neg=negs.find(n=>n.funcao===(c.abrangencia||'todas')&&(n.tipo||'Estado')===(c.tipo||'Estado')&&(n.grupo||'principal')===cGrupo)
+          // Casa pelo grupo_sindical_id (FK) — vínculo oficial entre
+          // CCT e Negociação. Cai pro casamento por texto só em
+          // linhas antigas sem essa FK ainda.
+          const neg=(c.grupo_sindical_id&&negs.find(n=>n.grupo_sindical_id===c.grupo_sindical_id))
+            ||negs.find(n=>n.funcao===(c.abrangencia||'todas')&&(n.tipo||'Estado')===(c.tipo||'Estado')&&(n.grupo||'principal')===cGrupo)
             ||negs.find(n=>n.funcao===(c.abrangencia||'todas')&&(n.tipo||'Estado')===(c.tipo||'Estado'))
             ||negs.find(n=>n.funcao===(c.abrangencia||'todas'))
             ||{};
@@ -1519,9 +1521,11 @@ function renderMapa(){
           const lab = getSind(cct.sind_lab_id);
           const pat = getSind(cct.sind_pat_id);
           const cctGrupo = cct.grupo||'principal';
-          // Casa pelo par exato (funcao+tipo+grupo) primeiro — necessário
-          // quando 2 CCTs do mesmo estado compartilham Abrangência/Tipo.
-          const neg = negs.find(n=>n.funcao===cct.abrangencia&&n.tipo===cct.tipo&&(n.grupo||'principal')===cctGrupo)
+          // Casa pelo grupo_sindical_id (FK) — vínculo oficial entre
+          // CCT e Negociação. Cai pro casamento por texto só em
+          // linhas antigas sem essa FK ainda.
+          const neg = (cct.grupo_sindical_id&&negs.find(n=>n.grupo_sindical_id===cct.grupo_sindical_id))
+            ||negs.find(n=>n.funcao===cct.abrangencia&&n.tipo===cct.tipo&&(n.grupo||'principal')===cctGrupo)
             ||negs.find(n=>n.funcao===cct.abrangencia&&n.tipo===cct.tipo)
             ||negs.find(n=>n.funcao===cct.abrangencia)
             ||{};

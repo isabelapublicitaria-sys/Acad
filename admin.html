@@ -197,6 +197,7 @@ label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercas
           <div class="field"><label>Tipo (cobertura) <span style="font-size:10px;color:var(--text-3);font-weight:400">(definida pelo par selecionado acima)</span></label>
             <select id="nf-tipo"><option>Estado</option><option>Município</option><option>Estado/Município</option></select></div>
           <input type="hidden" id="nf-grupo" value="principal">
+          <input type="hidden" id="nf-grupo-sindical-id" value="">
           <div class="field"><label>Data base</label><input type="text" id="nf-database" placeholder="ex: 01/2026"></div>
           <div class="field"><label>Percentual sugerido (%)</label><input type="text" id="nf-pct-prop" placeholder="ex: 8,0"></div>
           <div class="field"><label>Percentual acordado (%)</label><input type="text" id="nf-pct" placeholder="ex: 5,84"></div>
@@ -564,6 +565,47 @@ function populateUFs(selectIds){
   });
 }
 
+// ── Grupo sindical: ponte entre CCT (pisos) e Negociações ──
+// Em vez de CCT e Negociação tentarem se achar casando por texto
+// (uf+abrangência+tipo+grupo — frágil, foi o bug do RJ), as duas
+// passam a referenciar o MESMO `grupo_sindical_id`. Essas duas
+// funções garantem que esse vínculo sempre existe.
+
+// Acha (ou cria) o grupo sindical (a dupla laboral×patronal) dessa
+// combinação e retorna o id. Chamado ao salvar uma CCT ou um par em
+// "Grupos de sindicatos".
+async function getOrCreateGrupoSindical({uf,abrangencia,tipo,grupo,sind_lab_id,sind_pat_id}){
+  abrangencia=abrangencia||'todas';tipo=tipo||'Estado';grupo=grupo||'principal';
+  const {data:existing}=await sb.from('grupos_sindicais').select('*')
+    .eq('uf',uf).eq('abrangencia',abrangencia).eq('tipo',tipo).eq('grupo',grupo).maybeSingle();
+  if(existing){
+    // Se agora vieram sindicatos vinculados e antes não tinha, atualiza.
+    const upd={};
+    if(sind_lab_id&&sind_lab_id!==existing.sind_lab_id)upd.sind_lab_id=sind_lab_id;
+    if(sind_pat_id&&sind_pat_id!==existing.sind_pat_id)upd.sind_pat_id=sind_pat_id;
+    if(Object.keys(upd).length)await sb.from('grupos_sindicais').update(upd).eq('id',existing.id);
+    return existing.id;
+  }
+  const {data:created,error}=await sb.from('grupos_sindicais')
+    .insert({uf,abrangencia,tipo,grupo,sind_lab_id:sind_lab_id||null,sind_pat_id:sind_pat_id||null})
+    .select().single();
+  if(error){console.error('Erro ao criar grupo sindical:',error);return null;}
+  return created.id;
+}
+
+// Garante que existe uma negociação para esse grupo sindical no ano
+// (sem sobrescrever status de uma já existente). Chamado depois de
+// salvar uma CCT ou um par — assim a Negociação nunca "perde" a CCT.
+async function ensureNegociacaoParaGrupo({ano,uf,abrangencia,tipo,grupo,grupoSindicalId}){
+  if(!grupoSindicalId)return;
+  const {data:existing}=await sb.from('negociacoes').select('id')
+    .eq('ano',ano).eq('grupo_sindical_id',grupoSindicalId).maybeSingle();
+  if(existing)return;
+  await sb.from('negociacoes').insert({
+    ano,uf,funcao:abrangencia,tipo,grupo,grupo_sindical_id:grupoSindicalId,status:'aguardando',
+  });
+}
+
 function populateSindSelects(ids){
   ids.forEach(id=>{
     const sel=document.getElementById(id);if(!sel)return;
@@ -695,25 +737,27 @@ window.onNegUfChange=async function(){
   loadNegForm();
 };
 
-// Popula o select "par de sindicatos" com as CCTs cadastradas
-// (pisos) do estado/ano selecionados — cada par fica com seu próprio
-// status de negociação, mesmo quando compartilham Abrangência/Tipo.
+// Popula o select "par de sindicatos" com os GRUPOS SINDICAIS do
+// estado — não filtra por ano, porque o par é estável ano a ano (a
+// negociação pode existir antes de qualquer CCT sair pra esse par).
+// O value do option já é o grupo_sindical_id — é ele que liga essa
+// negociação à CCT certa, sem precisar casar por texto.
 window.loadNegCctOptions=async function(){
-  const ano=parseInt(document.getElementById('n-ano').value);
   const uf=document.getElementById('n-uf').value;
   const sel=document.getElementById('n-cct');
   if(!sel)return;
   if(!uf){sel.innerHTML='<option value="">Selecione o estado...</option>';return;}
-  const {data}=await sb.from('pisos').select('*').eq('ano',ano).eq('uf',uf).order('grupo');
-  const ccts=data||[];
-  sel.innerHTML='<option value="">Negociação geral (sem CCT vinculada)</option>';
-  ccts.forEach(c=>{
-    const lab=sindicatos.find(s=>s.id===c.sind_lab_id);
-    const pat=sindicatos.find(s=>s.id===c.sind_pat_id);
-    const fn=ABRANG[c.abrangencia]||c.abrangencia||'';
+  const {data}=await sb.from('grupos_sindicais').select('*').eq('uf',uf).order('grupo');
+  const grupos=data||[];
+  sel.innerHTML='<option value="">Negociação geral (sem par vinculado)</option>';
+  grupos.forEach(gp=>{
+    const lab=sindicatos.find(s=>s.id===gp.sind_lab_id);
+    const pat=sindicatos.find(s=>s.id===gp.sind_pat_id);
+    const fn=ABRANG[gp.abrangencia]||gp.abrangencia||'';
     const o=document.createElement('option');
-    o.value=JSON.stringify({funcao:c.abrangencia||'todas',tipo:c.tipo||'Estado',grupo:c.grupo||'principal'});
-    o.textContent=`${lab?(lab.sigla||lab.nome):'? laboral'} × ${pat?(pat.sigla||pat.nome):'? patronal'} — ${fn}/${c.tipo||'Estado'}`;
+    o.value=String(gp.id);
+    o.dataset.funcao=gp.abrangencia||'todas';o.dataset.tipo=gp.tipo||'Estado';o.dataset.grupo=gp.grupo||'principal';
+    o.textContent=`${lab?(lab.sigla||lab.nome):'? laboral'} × ${pat?(pat.sigla||pat.nome):'? patronal'} — ${fn}/${gp.tipo||'Estado'}`;
     sel.appendChild(o);
   });
 };
@@ -730,7 +774,8 @@ window.loadNegList=async function(){
   if(rNegs.error){el.innerHTML=`<div class="empty" style="color:var(--red)">Erro: ${rNegs.error.message}</div>`;return;}
   const rows=rNegs.data||[];
   const ccts=rCcts.data||[];
-  const findCct=n=>ccts.find(c=>c.uf===n.uf&&(c.abrangencia||'todas')===(n.funcao||'todas')&&(c.tipo||'Estado')===(n.tipo||'Estado')&&(c.grupo||'principal')===(n.grupo||'principal'));
+  const findCct=n=>(n.grupo_sindical_id&&ccts.find(c=>c.grupo_sindical_id===n.grupo_sindical_id))
+    ||ccts.find(c=>c.uf===n.uf&&(c.abrangencia||'todas')===(n.funcao||'todas')&&(c.tipo||'Estado')===(n.tipo||'Estado')&&(c.grupo||'principal')===(n.grupo||'principal'));
   if(!rows.length){el.innerHTML=`<div class="empty">Nenhuma negociação em ${ano}.<br><small style="color:var(--text-3)">Selecione um estado acima para criar.</small></div>`;return;}
   el.innerHTML=rows.map(n=>{
     const cct=findCct(n);
@@ -777,7 +822,7 @@ window.delNeg=async function(id){
 
 window.loadNegForm=async function(idOverride){
   const ano=parseInt(document.getElementById('n-ano').value);
-  let row=null, funcao='todas', tipo='Estado', grupo='principal';
+  let row=null, grupoSindicalId=null, funcao='todas', tipo='Estado', grupo='principal';
 
   if(idOverride){
     const {data}=await sb.from('negociacoes').select('*').eq('id',idOverride).single();
@@ -785,32 +830,32 @@ window.loadNegForm=async function(idOverride){
     if(row){
       document.getElementById('n-uf').value=row.uf;
       await loadNegCctOptions();
+      grupoSindicalId=row.grupo_sindical_id||null;
       funcao=row.funcao||'todas';tipo=row.tipo||'Estado';grupo=row.grupo||'principal';
     }
   } else {
     const uf=document.getElementById('n-uf').value;
     if(!uf)return;
-    const cctVal=document.getElementById('n-cct')?.value;
+    const cctSelVal=document.getElementById('n-cct');
+    const cctVal=cctSelVal?.value;
     if(cctVal){
-      try{ const v=JSON.parse(cctVal); funcao=v.funcao||'todas';tipo=v.tipo||'Estado';grupo=v.grupo||'principal'; }catch(e){}
+      grupoSindicalId=parseInt(cctVal);
+      const opt=cctSelVal.options[cctSelVal.selectedIndex];
+      funcao=opt?.dataset.funcao||'todas';tipo=opt?.dataset.tipo||'Estado';grupo=opt?.dataset.grupo||'principal';
     }
-    const {data}=await sb.from('negociacoes').select('*')
-      .eq('ano',ano).eq('uf',uf).eq('funcao',funcao).eq('tipo',tipo).eq('grupo',grupo).maybeSingle();
+    let q=sb.from('negociacoes').select('*').eq('ano',ano).eq('uf',uf);
+    q = grupoSindicalId ? q.eq('grupo_sindical_id',grupoSindicalId)
+                         : q.eq('funcao',funcao).eq('tipo',tipo).eq('grupo',grupo).is('grupo_sindical_id',null);
+    const {data}=await q.maybeSingle();
     row=data;
   }
 
-  // Sincroniza o select de par com a combinação carregada
+  // Sincroniza o select de par com o grupo sindical carregado
   const cctSel=document.getElementById('n-cct');
-  if(cctSel){
-    const match=[...cctSel.options].find(o=>{
-      if(!o.value)return false;
-      try{ const v=JSON.parse(o.value); return v.funcao===funcao&&v.tipo===tipo&&v.grupo===grupo; }catch(e){return false;}
-    });
-    cctSel.value=match?match.value:'';
-  }
-  // Quando há um par de CCT vinculado, Abrangência/Tipo vêm de lá —
-  // travados para não desalinhar do par escolhido.
-  const isLinked=!!(cctSel&&cctSel.value);
+  if(cctSel)cctSel.value=grupoSindicalId?String(grupoSindicalId):'';
+  // Quando há um par vinculado, Abrangência/Tipo vêm dele — travados
+  // para não desalinhar do par escolhido.
+  const isLinked=!!grupoSindicalId;
   const funcaoSel=document.getElementById('nf-funcao');
   const tipoSel=document.getElementById('nf-tipo');
   if(funcaoSel)funcaoSel.disabled=isLinked;
@@ -819,7 +864,8 @@ window.loadNegForm=async function(idOverride){
   document.getElementById('neg-form').style.display='block';
   const ufRow=row?.uf||document.getElementById('n-uf').value||'';
   const estNome=ESTADOS.find(e=>e.uf===ufRow)?.nome||ufRow;
-  const parLabel=isLinked?' — '+cctSel.options[cctSel.selectedIndex].textContent:'';
+  const selectedOpt=cctSel?.value?cctSel.options[cctSel.selectedIndex]:null;
+  const parLabel=isLinked&&selectedOpt?' — '+selectedOpt.textContent:'';
 
   if(row){
     currentEditId.neg=row.id;
@@ -829,6 +875,7 @@ window.loadNegForm=async function(idOverride){
     setVal('nf-funcao',   row.funcao||'todas');
     setVal('nf-tipo',     row.tipo);
     setVal('nf-grupo',    row.grupo||'principal');
+    setVal('nf-grupo-sindical-id', row.grupo_sindical_id||'');
     setVal('nf-pct-prop', row.pct_proposto);
     setVal('nf-pct',      row.percentual);
     setVal('nf-database', row.data_base);
@@ -845,6 +892,7 @@ window.loadNegForm=async function(idOverride){
     setVal('nf-funcao',funcao);
     setVal('nf-tipo',tipo);
     setVal('nf-grupo',grupo);
+    setVal('nf-grupo-sindical-id', grupoSindicalId||'');
     const sindSel=document.getElementById('nf-sind');
     if(sindSel)sindSel.value='';
   }
@@ -865,9 +913,11 @@ window.saveNeg=async function(){
   const ano=parseInt(document.getElementById('n-ano').value);
   const uf=document.getElementById('n-uf').value;
   if(!uf){toast('Selecione um estado.','err');return;}
+  const grupoSindicalId=parseInt(getVal('nf-grupo-sindical-id'))||null;
   const payload={
     ano,uf,status:getVal('nf-status'),funcao:getVal('nf-funcao')||'todas',tipo:getVal('nf-tipo'),
     grupo:getVal('nf-grupo')||'principal',
+    grupo_sindical_id:grupoSindicalId,
     pct_proposto:getVal('nf-pct-prop'),percentual:getVal('nf-pct'),
     data_base:getVal('nf-database'),obs:getVal('nf-obs'),
     sind_id:parseInt(getVal('nf-sind'))||null,
@@ -875,6 +925,10 @@ window.saveNeg=async function(){
   let error;
   if(currentEditId.neg){
     ({error}=await sb.from('negociacoes').update(payload).eq('id',currentEditId.neg));
+  } else if(grupoSindicalId){
+    // Vinculada a um par — o id do grupo sindical já garante que não
+    // duplica nem se perde, mesmo que funcao/tipo/grupo mudem depois.
+    ({error}=await sb.from('negociacoes').upsert({...payload},{onConflict:'ano,grupo_sindical_id'}));
   } else {
     ({error}=await sb.from('negociacoes').upsert({...payload},{onConflict:'ano,uf,funcao,tipo,grupo'}));
   }
@@ -1081,10 +1135,16 @@ window.saveCCT=async function(){
   const uf=getVal('ca-uf');
   if(!uf){toast('Selecione um estado.','err');return;}
   const g=id=>getVal(id)||null;
+  const abrangencia=g('cf-abrang')||'todas',tipo=g('cf-tipo')||'Estado',grupo=g('cf-grupo')||'principal';
+  const sindLabId=parseInt(g('cf-sind-lab'))||null,sindPatId=parseInt(g('cf-sind-pat'))||null;
+  // Garante o grupo sindical (par) ANTES de salvar a CCT — é o que
+  // permite a Negociação encontrar essa CCT depois, sem precisar
+  // adivinhar por texto.
+  const grupoSindicalId=await getOrCreateGrupoSindical({uf,abrangencia,tipo,grupo,sind_lab_id:sindLabId,sind_pat_id:sindPatId});
   const payload={
     ano,uf,
-    sind_lab_id:parseInt(g('cf-sind-lab'))||null,sind_pat_id:parseInt(g('cf-sind-pat'))||null,
-    abrangencia:g('cf-abrang')||'todas',tipo:g('cf-tipo')||'Estado',grupo:g('cf-grupo')||'principal',
+    sind_lab_id:sindLabId,sind_pat_id:sindPatId,
+    abrangencia,tipo,grupo,grupo_sindical_id:grupoSindicalId,
     data_base:g('cf-database'),vig_ini:g('cf-vigini'),vig_fim:g('cf-vigfim'),
     pct:g('cf-pct'),link_cct:g('cf-link-cct'),link_adi:g('cf-link-adi'),link_drv:g('cf-link-drv'),
     ef_men:g('cf-ef-men'),ef_cmen:g('cf-ef-cmen'),ef_resp:g('cf-ef-resp'),
@@ -1103,6 +1163,9 @@ window.saveCCT=async function(){
     ({error}=await sb.from('pisos').upsert({...payload},{onConflict:'ano,uf,abrangencia,tipo,grupo'}));
   }
   if(error){toast('Erro: '+error.message,'err');return;}
+  // Garante que a Negociação deste par/ano existe (sem mexer no
+  // status se já existir).
+  await ensureNegociacaoParaGrupo({ano,uf,abrangencia,tipo,grupo,grupoSindicalId});
   toast('CCT salva!');await loadCCTList();
 };
 
@@ -1221,17 +1284,22 @@ window.saveGrupo=async function(){
   const lab=getVal('gr-lab');
   const pat=getVal('gr-pat');
   if(!lab&&!pat){toast('Selecione ao menos um sindicato.','err');return;}
+  const abrangencia=getVal('gr-abrang')||'todas',tipo=getVal('gr-tipo')||'Estado',grupo=getVal('gr-grupo')||'principal';
+  const sindLabId=lab?parseInt(lab):null,sindPatId=pat?parseInt(pat):null;
+  // Cria/acha o grupo sindical primeiro — é ele que liga este par à
+  // CCT e à Negociação, mesmo antes de a CCT ter qualquer dado real.
+  const grupoSindicalId=await getOrCreateGrupoSindical({uf,abrangencia,tipo,grupo,sind_lab_id:sindLabId,sind_pat_id:sindPatId});
+  if(!grupoSindicalId){toast('Erro ao salvar o grupo sindical.','err');return;}
   const payload={
     ano,uf,
-    sind_lab_id:lab?parseInt(lab):null,
-    sind_pat_id:pat?parseInt(pat):null,
-    abrangencia:getVal('gr-abrang')||'todas',
-    tipo:getVal('gr-tipo')||'Estado',
-    grupo:getVal('gr-grupo')||'principal',
+    sind_lab_id:sindLabId,sind_pat_id:sindPatId,
+    abrangencia,tipo,grupo,grupo_sindical_id:grupoSindicalId,
   };
   const {error}=await sb.from('pisos').upsert(payload,{onConflict:'ano,uf,abrangencia,tipo,grupo'});
   if(error){toast('Erro: '+error.message,'err');return;}
-  toast('Par salvo!');
+  // Já deixa a Negociação deste par/ano disponível pra editar.
+  await ensureNegociacaoParaGrupo({ano,uf,abrangencia,tipo,grupo,grupoSindicalId});
+  toast('Par salvo! Já disponível em CCTs e Negociações.');
   renderGrupos();
 };
 
@@ -1465,10 +1533,11 @@ window.renderAdmMapa=async function(){
           const lab=getSindA(cct.sind_lab_id);
           const pat=getSindA(cct.sind_pat_id);
           const cctGrupo=cct.grupo||'principal';
-          // Casa pelo par exato (funcao+tipo+grupo) primeiro — é o que
-          // garante status independente quando 2 CCTs do mesmo estado
-          // compartilham Abrangência/Tipo (ex: SC, PR, RJ).
-          const neg=negs.find(n=>n.funcao===cct.abrangencia&&n.tipo===cct.tipo&&(n.grupo||'principal')===cctGrupo)
+          // Casa pelo grupo_sindical_id (FK) — é o vínculo oficial
+          // entre CCT e Negociação. Cai pro casamento por texto só
+          // em linhas antigas que ainda não tenham essa FK populada.
+          const neg=(cct.grupo_sindical_id&&negs.find(n=>n.grupo_sindical_id===cct.grupo_sindical_id))
+            ||negs.find(n=>n.funcao===cct.abrangencia&&n.tipo===cct.tipo&&(n.grupo||'principal')===cctGrupo)
             ||negs.find(n=>n.funcao===cct.abrangencia&&n.tipo===cct.tipo)
             ||negs.find(n=>n.funcao===cct.abrangencia)
             ||{};
@@ -1494,7 +1563,7 @@ window.renderAdmMapa=async function(){
               <span class="badge ${ST_BADGE_ADM[st_]}">${ST_LABEL_ADM[st_]}</span>
               ${assinadaH}${publicadaH}
               ${pctH}${dbH}${linksH}
-              <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;margin-left:auto" onclick="goAdmNegPar('${e.uf}','${cct.abrangencia||'todas'}','${cct.tipo||'Estado'}','${cctGrupo}')">Editar status →</button>
+              <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;margin-left:auto" onclick="goAdmNegPar('${e.uf}',${cct.grupo_sindical_id||'null'})">Editar status →</button>
               <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px" onclick="setAdmNav('ccts',document.querySelector('.nav-item:nth-child(4)'));setTimeout(()=>loadCCTList(),100)">Editar CCT →</button>
             </div>
             <div class="adm-mapa-cct-body">
@@ -1619,9 +1688,9 @@ window.goAdmNegs=function(uf){
     loadNegForm();
   },150);
 };
-// Atalho direto do Mapa: abre a aba Negociações já com o par de
-// sindicatos certo selecionado (cada CCT tem seu próprio status).
-window.goAdmNegPar=function(uf,funcao,tipo,grupo){
+// Atalho direto do Mapa: abre a aba Negociações já com o grupo
+// sindical certo selecionado (cada par tem seu próprio status).
+window.goAdmNegPar=function(uf,grupoSindicalId){
   const btn=document.querySelectorAll('#admin-panel .nav-item')[0];
   if(btn) setAdmNav('negociacoes',btn);
   setTimeout(async ()=>{
@@ -1630,13 +1699,7 @@ window.goAdmNegPar=function(uf,funcao,tipo,grupo){
     sel.value=uf;
     await loadNegCctOptions();
     const cctSel=document.getElementById('n-cct');
-    if(cctSel){
-      const match=[...cctSel.options].find(o=>{
-        if(!o.value)return false;
-        try{ const v=JSON.parse(o.value); return v.funcao===funcao&&v.tipo===tipo&&v.grupo===grupo; }catch(e){return false;}
-      });
-      if(match)cctSel.value=match.value;
-    }
+    if(cctSel&&grupoSindicalId)cctSel.value=String(grupoSindicalId);
     loadNegForm();
   },150);
 };

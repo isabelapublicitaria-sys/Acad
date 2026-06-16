@@ -21,27 +21,53 @@ build/bundler**: dois arquivos HTML com JS inline em `<script type="module">`.
   Ex: Santa Catarina tem 4 pares: SINPRONORTE×SIACADESC (estado),
   SAAE GFPOLIS×SIACADESC, SINPABRE SC×SIACADESC, SINPRO FPOLIS×SIACADESC
   (esses 3 últimos municipais).
-- Cada par = uma linha em `pisos` (a "CCT"), chave
+- Cada par = uma linha em `pisos` (a "CCT"), historicamente chaveada por
   `(ano, uf, abrangencia, tipo, grupo)`. `grupo` é texto livre (default
   `'principal'`), só varia quando 2+ CCTs do mesmo estado compartilham
   `abrangencia`+`tipo` (casos conhecidos: SC, PR, RJ — ver
   `vincular_pares_cct.sql` pros nomes de grupo usados).
-- `negociacoes` (status + percentual de reajuste) usa a **mesma chave**:
-  `(ano, uf, funcao, tipo, grupo)` — `funcao` em negociacoes corresponde a
-  `abrangencia` em pisos. Isso foi corrigido em 2026-06
-  (`fix_negociacoes_por_par.sql`): antes não existia `grupo`, então pares
-  diferentes com mesma abrangência/tipo eram OBRIGADOS a compartilhar status
-  (bug real relatado pela usuária em SC).
-- **Regra ao cruzar `pisos` × `negociacoes`**: sempre casar pelos 3 campos
-  (`funcao`/`abrangencia`, `tipo`, `grupo`). Nunca só por `funcao` — esse foi
-  o bug antigo, presente em várias funções (`negs.find(...)` em
-  `renderAdmMapa` no admin.html, e em duas funções de mapa no index.html).
-  Padrão correto usado hoje:
+- **`grupos_sindicais` (2026-06, `fix_grupo_sindical.sql`) é a entidade
+  central** que liga tudo: representa a DUPLA laboral×patronal em si,
+  **sem `ano`** (o par é estável ano a ano; CCT e negociação são as
+  atividades anuais em cima dele). `pisos.grupo_sindical_id` e
+  `negociacoes.grupo_sindical_id` são FK pra ela. Antes disso, CCT e
+  Negociação só se achavam casando por texto
+  `(uf, abrangencia/funcao, tipo, grupo)` — frágil, e foi o que causou o
+  bug relatado no Rio de Janeiro (CCT existia, negociação não achava o
+  par porque os dois lados não eram sincronizados automaticamente).
+- **Fluxo real (importante pro modelo mental)**: sindicato faz assembleia
+  (individual, 99% das vezes) → a DUPLA entra em negociação (conjunta) →
+  da negociação sai a CCT (assinada e/ou publicada no Mediador). Ou seja,
+  a Negociação pode — e costuma — existir ANTES de qualquer CCT. É por
+  isso que o seletor de par na aba Negociações lista `grupos_sindicais`
+  direto (sem filtrar por ano/CCT existente).
+- **Como o vínculo é mantido automaticamente** (ver admin.html):
+  - `getOrCreateGrupoSindical(...)` — acha ou cria o grupo sindical pra
+    uma combinação uf+abrangencia+tipo+grupo. Chamado ao salvar CCT
+    (`saveCCT`) e ao salvar par em "Grupos de sindicatos" (`saveGrupo`).
+  - `ensureNegociacaoParaGrupo(...)` — garante que existe uma negociação
+    pra aquele grupo sindical naquele ano (sem sobrescrever status já
+    existente). Chamado depois de `getOrCreateGrupoSindical` nos mesmos
+    dois fluxos. **Toda vez que se cria/edita uma CCT ou um par, a
+    negociação correspondente é garantida automaticamente** — não deve
+    nunca mais "se perder" como aconteceu no RJ.
+  - A aba "Negociações" guarda o `grupo_sindical_id` escolhido em
+    `nf-grupo-sindical-id` (hidden) e usa ele como chave de
+    upsert/leitura quando há um par vinculado.
+- **Regra ao cruzar `pisos` × `negociacoes` no Mapa**: casar primeiro por
+  `grupo_sindical_id` (FK, bulletproof); só cair pro casamento por texto
+  `(funcao/abrangencia, tipo, grupo)` como fallback pra linhas antigas
+  sem essa FK populada ainda. Padrão usado hoje (admin.html e
+  index.html, função `renderAdmMapa`/`renderMapa`/`renderCCTs`):
   ```js
-  negs.find(n=>n.funcao===cct.abrangencia&&n.tipo===cct.tipo&&(n.grupo||'principal')===(cct.grupo||'principal'))
+  (cct.grupo_sindical_id && negs.find(n=>n.grupo_sindical_id===cct.grupo_sindical_id))
+    ||negs.find(n=>n.funcao===cct.abrangencia&&n.tipo===cct.tipo&&(n.grupo||'principal')===(cct.grupo||'principal'))
     ||negs.find(n=>n.funcao===cct.abrangencia&&n.tipo===cct.tipo)
     ||negs.find(n=>n.funcao===cct.abrangencia)||{}
   ```
+  Nunca casar só por `funcao` sem `tipo`/`grupo`/FK — esse foi o bug
+  original (SC), parcialmente mitigado por `grupo` em 2026-06 e resolvido
+  de vez pelo `grupo_sindical_id`.
 - Assembleias geralmente são por par individual (99% das vezes — confirmado
   pela usuária). Já a negociação pode envolver os sindicatos de um estado em
   conjunto, mas o resultado (a CCT) pode valer só pra 1 par, não pro estado
@@ -86,6 +112,11 @@ quando rodou. Arquivos:
   registros faltantes por par, correção pontual de SC, colunas
   `assinada`/`publicada_mediador` em pisos, status `vigente`. **Já
   executado em produção em 2026-06-16.**
+- `fix_grupo_sindical.sql` — cria `grupos_sindicais`, popula a partir de
+  `pisos`/`negociacoes` existentes, adiciona FK `grupo_sindical_id` nos
+  dois, backfill, e garante negociação pra toda CCT sem par
+  correspondente (resolve o caso relatado do RJ). **Já executado em
+  produção em 2026-06-16.**
 - `vincular_pares_cct.sql` — popula os pares laboral/patronal por estado em
   `pisos` para 2026 (referência dos nomes de `grupo` usados por estado).
 - `insert_assembleias.sql`, `insert_fenac_assembleia.sql` — dados de
