@@ -295,6 +295,7 @@ input[type=text]{width:155px}
           <option value="aguardando">Aguardando data base</option>
           <option value="sem_acordo">Sem acordo</option>
           <option value="concluido">Acordo finalizado</option>
+          <option value="vigente">CCT vigente (sem negociação)</option>
         </select>
         <select id="f-tipo" onchange="renderDash()">
           <option value="">Estado + Município</option>
@@ -490,6 +491,8 @@ input[type=text]{width:155px}
           <option value="concluido">Acordo finalizado</option>
           <option value="negociacao">Em negociação</option>
           <option value="aguardando">Aguardando data base</option>
+          <option value="sem_acordo">Sem acordo</option>
+          <option value="vigente">CCT vigente (sem negociação)</option>
         </select>
         <input type="text" id="mapa-search" placeholder="Buscar estado..." oninput="renderMapa()" style="width:140px">
       </div>
@@ -555,8 +558,8 @@ const ESTADOS = [
   {uf:"TO",nome:"Tocantins",reg:"norte"}
 ];
 
-const STATUS_LABEL = {negociacao:"Em negociação",aguardando:"Aguardando data base",sem_acordo:"Sem acordo",concluido:"Acordo finalizado"};
-const STATUS_BADGE = {negociacao:"b-neg",aguardando:"b-warn",sem_acordo:"b-red",concluido:"b-ok"};
+const STATUS_LABEL = {negociacao:"Em negociação",aguardando:"Aguardando data base",sem_acordo:"Sem acordo",concluido:"Acordo finalizado",vigente:"CCT vigente (sem negociação)"};
+const STATUS_BADGE = {negociacao:"b-neg",aguardando:"b-warn",sem_acordo:"b-red",concluido:"b-ok",vigente:"b-teal"};
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const ABRANG = {todas:"Todas as funções",ef:"Educ. Física",adm:"Administrativo"};
 
@@ -953,18 +956,21 @@ function renderCCTs(){
   const cardsCCT=statesCCT.map(e=>{
       const ccts=DATA.ccts.filter(c=>c.ano===anoRef&&c.uf===e.uf);
       const negs=DATA.negociacoes.filter(n=>n.ano===anoRef&&n.uf===e.uf);
-      const nCCTs=ccts.length;
-      const badge=nCCTs>1?`<span class="badge b-purple" style="font-size:9px">${nCCTs} CCTs</span>`
-        :nCCTs===1?`<span class="badge b-neg" style="font-size:9px">1 CCT</span>`
-        :`<span class="badge b-gray" style="font-size:9px">Sem CCT ${anoRef}</span>`;
-
       let bodyHtml='';
+      const cctStatuses=[]; // status de cada par — usado no resumo "X/Y resolvidas"
       if(ccts.length){
         bodyHtml=ccts.map(c=>{
           const lab=c.sind_lab_id?getSind(c.sind_lab_id):null;
           const pat=c.sind_pat_id?getSind(c.sind_pat_id):null;
-          const neg=negs.find(n=>n.funcao===(c.abrangencia||'todas'))||negs[0]||{};
+          const cGrupo=c.grupo||'principal';
+          // Casa pelo par exato (funcao+tipo+grupo) primeiro — necessário
+          // quando 2 CCTs do mesmo estado compartilham Abrangência/Tipo.
+          const neg=negs.find(n=>n.funcao===(c.abrangencia||'todas')&&(n.tipo||'Estado')===(c.tipo||'Estado')&&(n.grupo||'principal')===cGrupo)
+            ||negs.find(n=>n.funcao===(c.abrangencia||'todas')&&(n.tipo||'Estado')===(c.tipo||'Estado'))
+            ||negs.find(n=>n.funcao===(c.abrangencia||'todas'))
+            ||{};
           const st_=neg.status||'aguardando';
+          cctStatuses.push(st_);
           const pct=neg.percentual||c.pct;
           const abrangH=`<span class="badge ${ABRANG_BADGE[c.abrangencia||'todas']}">${ABRANG_LBL[c.abrangencia||'todas']}</span>`;
           const tipoH=c.tipo&&c.tipo!=='Estado'?`<span class="badge b-gray" style="font-size:9px">${c.tipo}</span>`:'';
@@ -972,6 +978,8 @@ function renderCCTs(){
           const dbH=c.data_base?`<span style="font-size:10px;color:var(--text-3)">Data base: <strong style="color:var(--text)">${c.data_base}</strong></span>`:'';
           const vigStr=c.vig_ini&&c.vig_fim?`${c.vig_ini} → ${c.vig_fim}`:'';
           const vigH=vigStr?`<span style="font-size:10px;color:var(--text-3)">${vigStr}</span>`:'';
+          const assinadaH=c.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:'';
+          const publicadaH=c.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:'';
           const linkCCT=c.link_cct||c.link_drv||'';
           const linksH=[
             linkCCT?`<a href="${linkCCT}" target="_blank" class="lbtn" style="font-size:10px">CCT ↗</a>`:'',
@@ -983,6 +991,7 @@ function renderCCTs(){
             <div class="mapa-cct-meta">
               ${abrangH}${tipoH}
               <span class="badge ${STATUS_BADGE[st_]}">${STATUS_LABEL[st_]}</span>
+              ${assinadaH}${publicadaH}
               ${pctH}${dbH}${vigH}${linksH}
             </div>
             <div class="mapa-cct-sinds">${mkSind(lab,'lab')}${mkSind(pat,'pat')}</div>
@@ -1013,13 +1022,26 @@ function renderCCTs(){
         }
       }
 
+      const nCCTs=ccts.length;
+      const badge=nCCTs>1?`<span class="badge b-purple" style="font-size:9px">${nCCTs} CCTs</span>`
+        :nCCTs===1?`<span class="badge b-neg" style="font-size:9px">1 CCT</span>`
+        :`<span class="badge b-gray" style="font-size:9px">Sem CCT ${anoRef}</span>`;
+
+      // Resumo "bater o olho": quantos pares já resolveram (CCT
+      // concluída ou ainda vigente de ano anterior) vs quantos ainda
+      // dependem de negociação neste ano.
+      const nResolvidos=cctStatuses.filter(s=>s==='concluido'||s==='vigente').length;
+      const resumoH=cctStatuses.length>1
+        ?`<span class="badge ${nResolvidos===cctStatuses.length?'b-ok':'b-warn'}" style="font-size:9px">${nResolvidos}/${cctStatuses.length} resolvidas</span>`
+        :'';
+
       return`<div class="mapa-card" id="cct-card-${e.uf}">
         <div class="mapa-card-hd">
           <div style="display:flex;align-items:center;gap:7px">
             <span style="font-size:13px;font-weight:600">${e.nome}</span>
             <span class="uf-tag">${e.uf}</span>
           </div>
-          ${badge}
+          <div style="display:flex;align-items:center;gap:5px">${badge}${resumoH}</div>
         </div>
         ${bodyHtml}
       </div>`;
@@ -1491,12 +1513,20 @@ function renderMapa(){
       };
 
       let cctBodyHtml='';
+      const cctStatuses=[]; // status de cada par — usado no resumo "X/Y resolvidas"
       if(ccts.length){
         cctBodyHtml = ccts.map(cct=>{
           const lab = getSind(cct.sind_lab_id);
           const pat = getSind(cct.sind_pat_id);
-          const neg = negs.find(n=>n.funcao===cct.abrangencia)||negs.find(n=>n.funcao==='todas')||negs[0]||{};
+          const cctGrupo = cct.grupo||'principal';
+          // Casa pelo par exato (funcao+tipo+grupo) primeiro — necessário
+          // quando 2 CCTs do mesmo estado compartilham Abrangência/Tipo.
+          const neg = negs.find(n=>n.funcao===cct.abrangencia&&n.tipo===cct.tipo&&(n.grupo||'principal')===cctGrupo)
+            ||negs.find(n=>n.funcao===cct.abrangencia&&n.tipo===cct.tipo)
+            ||negs.find(n=>n.funcao===cct.abrangencia)
+            ||{};
           const st_ = neg.status||'aguardando';
+          cctStatuses.push(st_);
           const pct = neg.percentual||cct.pct;
 
           const abrangH = cct.abrangencia==='ef'?`<span class="badge b-teal">Educ. Física</span>`
@@ -1506,6 +1536,8 @@ function renderMapa(){
           const pctH   = pct?`<span class="pct-chip">${pct}%</span>`:'';
           const dbH    = cct.data_base?`<span style="font-size:10px;color:var(--text-3)">Data base: <strong style="color:var(--text)">${cct.data_base}</strong></span>`:'';
           const vigH   = cct.vig_ini&&cct.vig_fim?`<span style="font-size:10px;color:var(--text-3)">${cct.vig_ini} → ${cct.vig_fim}</span>`:'';
+          const assinadaH=cct.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:'';
+          const publicadaH=cct.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:'';
           const linkCCT=cct.link_cct||cct.link_drv||'';
           const linksH = [
             linkCCT?`<a href="${linkCCT}" target="_blank" class="lbtn" style="font-size:10px">CCT ↗</a>`:'',
@@ -1516,6 +1548,7 @@ function renderMapa(){
             <div class="mapa-cct-meta">
               ${abrangH}${tipoH}
               <span class="badge ${STATUS_BADGE[st_]}">${STATUS_LABEL[st_]}</span>
+              ${assinadaH}${publicadaH}
               ${pctH}${dbH}${vigH}${linksH}
             </div>
             <div class="mapa-cct-sinds">${mkSind(lab,'lab')}${mkSind(pat,'pat')}</div>
@@ -1589,13 +1622,21 @@ function renderMapa(){
         :nCCTs===1?`<span class="badge b-neg" style="font-size:9px">1 CCT</span>`
         :(laborais.length||patronais.length)?`<span style="font-size:10px;color:var(--text-3)">${laborais.length}L · ${patronais.length}P</span>`:'';
 
+      // Resumo "bater o olho": quantos pares já resolveram (CCT
+      // concluída ou ainda vigente de ano anterior) vs quantos ainda
+      // dependem de negociação neste ano.
+      const nResolvidos=cctStatuses.filter(s=>s==='concluido'||s==='vigente').length;
+      const resumoH=cctStatuses.length>1
+        ?`<span class="badge ${nResolvidos===cctStatuses.length?'b-ok':'b-warn'}" style="font-size:9px">${nResolvidos}/${cctStatuses.length} resolvidas</span>`
+        :'';
+
       return `<div class="mapa-card">
         <div class="mapa-card-hd">
           <div style="display:flex;align-items:center;gap:7px">
             <span style="font-size:13px;font-weight:600">${e.nome}</span>
             <span class="uf-tag">${e.uf}</span>
           </div>
-          ${badge}
+          <div style="display:flex;align-items:center;gap:5px">${badge}${resumoH}</div>
         </div>
         ${cctBodyHtml}
         ${assembHtml}
