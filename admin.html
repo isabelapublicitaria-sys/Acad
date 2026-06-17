@@ -80,6 +80,10 @@ label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercas
 .rec-title{font-size:13px;font-weight:500}
 .rec-sub{font-size:11px;color:var(--text-2);margin-top:2px}
 .rec-hint{font-size:10px;color:var(--text-3);margin-top:1px}
+.status-inline{font-size:11px;padding:3px 7px;border-radius:var(--r);border:0.5px solid var(--border-md);background:var(--bg-2);color:var(--text);font-family:inherit;cursor:pointer}
+.par-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 0 4px;border-top:0.5px solid var(--border-md);margin-top:6px}
+.par-assemb-list{display:flex;flex-direction:column;gap:3px;padding:6px 0 2px;border-top:0.5px solid var(--border-md);margin-top:4px}
+.par-assemb-item{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-2)}
 /* TOAST */
 .toast{position:fixed;bottom:20px;right:20px;z-index:999;padding:11px 18px;border-radius:var(--r);font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;font-weight:500;max-width:320px}
 .toast.show{opacity:1}
@@ -155,14 +159,14 @@ label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercas
   </div>
   <nav class="sidebar-nav">
     <div class="nav-label">Editar dados</div>
-    <button class="nav-item active" onclick="setAdmNav('negociacoes',this)"><span style="font-size:14px;width:18px;text-align:center">◫</span> Negociações</button>
+    <button class="nav-item active" onclick="setAdmNav('grupos',this)"><span style="font-size:14px;width:18px;text-align:center">⇌</span> Pares de sindicatos</button>
     <button class="nav-item" onclick="setAdmNav('assembleias',this)"><span style="font-size:14px;width:18px;text-align:center">◷</span> Assembleias</button>
     <button class="nav-item" onclick="setAdmNav('ccts',this)"><span style="font-size:14px;width:18px;text-align:center">§</span> CCTs e pisos</button>
     <button class="nav-item" onclick="setAdmNav('sindicatos',this)"><span style="font-size:14px;width:18px;text-align:center">⊞</span> Sindicatos</button>
-    <button class="nav-item" onclick="setAdmNav('grupos',this)"><span style="font-size:14px;width:18px;text-align:center">⇌</span> Grupos de sindicatos</button>
     <button class="nav-item" onclick="setAdmNav('encontros',this)"><span style="font-size:14px;width:18px;text-align:center">≡</span> Encontros ACAD</button>
     <div class="nav-label" style="margin-top:6px">Visão geral</div>
     <button class="nav-item" onclick="setAdmNav('mapa',this)"><span style="font-size:14px;width:18px;text-align:center">◈</span> Mapa Sindical</button>
+    <button class="nav-item" onclick="setAdmNav('negociacoes',this)" style="opacity:.5;font-size:12px"><span style="font-size:14px;width:18px;text-align:center">◫</span> Negociações (avançado)</button>
   </nav>
   <div class="sidebar-footer">
     <button class="btn btn-ghost btn-sm" onclick="doLogout()" style="width:100%">← Sair</button>
@@ -401,7 +405,10 @@ label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercas
     </div>
     <div class="form-wrap">
       <div class="fsection">
-        <div class="fsection-head">Adicionar par de sindicatos</div>
+        <div class="fsection-head">
+          <span id="gr-form-title">Adicionar par de sindicatos</span>
+          <button class="btn btn-ghost btn-sm" id="gr-cancel" onclick="cancelEditGrupo()" style="display:none">Cancelar edição</button>
+        </div>
         <div class="fgrid g2">
           <div class="field">
             <label>Sindicato laboral</label>
@@ -428,7 +435,7 @@ label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercas
             <input type="text" id="gr-grupo" value="principal" placeholder="principal">
           </div>
           <div class="field" style="align-self:end">
-            <button class="btn btn-primary" style="width:100%" onclick="saveGrupo()">Adicionar par</button>
+            <button class="btn btn-primary" style="width:100%" onclick="saveGrupo()" id="gr-save-btn">Adicionar par</button>
           </div>
         </div>
       </div>
@@ -520,7 +527,8 @@ function parseLocalDate(iso){
 
 // ── Estado global ──
 let sindicatos = [];
-let currentEditId = { neg:null, assemb:null, cct:null, sind:null, enc:null };
+let gruposCache = [];
+let currentEditId = { neg:null, assemb:null, cct:null, sind:null, enc:null, grupo:null };
 
 const ESTADOS = [
   {uf:"AC",nome:"Acre"},{uf:"AL",nome:"Alagoas"},{uf:"AM",nome:"Amazonas"},
@@ -714,9 +722,13 @@ async function initAdmin(){
   renderEncList();
   loadNegList();
   await loadCCTList();
+  // Abre na aba Pares por padrão
+  const paresBtn=document.querySelector('#admin-panel .nav-item[onclick*="\'grupos\'"]');
+  if(paresBtn)setAdmNav('grupos',paresBtn);
 }
 
 // ── NAVEGAÇÃO ──
+// nav-item order: 0=Pares, 1=Assembleias, 2=CCTs, 3=Sindicatos, 4=Encontros, 5=Mapa, 6=Negociações(avançado)
 window.setAdmNav=function(n,el){
   document.querySelectorAll('#admin-panel .nav-item').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
@@ -848,6 +860,18 @@ window.loadNegForm=async function(idOverride){
                          : q.eq('funcao',funcao).eq('tipo',tipo).eq('grupo',grupo).is('grupo_sindical_id',null);
     const {data}=await q.maybeSingle();
     row=data;
+    // Fallback: selecionou um par mas não achou pelo grupo_sindical_id →
+    // negociação antiga sem FK populada (ex: criada antes da migração)
+    if(!row && grupoSindicalId){
+      const {data:fb}=await sb.from('negociacoes').select('*')
+        .eq('ano',ano).eq('uf',uf).eq('funcao',funcao).eq('tipo',tipo).eq('grupo',grupo)
+        .is('grupo_sindical_id',null).maybeSingle();
+      if(fb){
+        row=fb;
+        await sb.from('negociacoes').update({grupo_sindical_id:grupoSindicalId}).eq('id',fb.id);
+        row.grupo_sindical_id=grupoSindicalId;
+      }
+    }
   }
 
   // Sincroniza o select de par com o grupo sindical carregado
@@ -1241,7 +1265,7 @@ window.delSind=async function(id){
   toast('Excluído.');await renderSindList();
 };
 
-// ════════════════ GRUPOS DE SINDICATOS ════════════════
+// ════════════════ PARES DE SINDICATOS ════════════════
 window.renderGrupos=async function(){
   const uf=getVal('gr-uf');
   const ano=parseInt(document.getElementById('gr-ano')?.value||2026);
@@ -1249,32 +1273,120 @@ window.renderGrupos=async function(){
   const hd=document.getElementById('grupos-head');
   if(!uf){el.innerHTML='<div class="empty">Selecione um estado para ver os pares.</div>';return;}
   el.innerHTML='<div class="empty" style="color:var(--text-3)">Carregando...</div>';
-  const {data,error}=await sb.from('pisos').select('*').eq('ano',ano).eq('uf',uf).order('abrangencia');
-  if(error){el.innerHTML=`<div class="empty" style="color:var(--red)">Erro: ${error.message}</div>`;return;}
-  const rows=data||[];
+  const [rGrupos,rPisos,rNegs,rAssemb]=await Promise.all([
+    sb.from('grupos_sindicais').select('*').eq('uf',uf).order('abrangencia'),
+    sb.from('pisos').select('*').eq('ano',ano).eq('uf',uf),
+    sb.from('negociacoes').select('*').eq('ano',ano).eq('uf',uf),
+    sb.from('assembleias').select('*').eq('uf',uf).order('data_iso'),
+  ]);
+  if(rGrupos.error){el.innerHTML=`<div class="empty" style="color:var(--red)">Erro: ${rGrupos.error.message}</div>`;return;}
+  gruposCache=rGrupos.data||[];
+  const pisosAno=rPisos.data||[];
+  const negsAno=rNegs.data||[];
+  const assembAno=(rAssemb.data||[]).filter(a=>a.data_iso?.startsWith(String(ano)));
   const estNome=ESTADOS.find(e=>e.uf===uf)?.nome||uf;
-  if(hd)hd.textContent=`Pares cadastrados — ${estNome} / ${ano}`;
-  if(!rows.length){el.innerHTML='<div class="empty">Nenhum par para este estado. Use o formulário acima para adicionar.</div>';return;}
+  if(hd)hd.textContent=`Pares — ${estNome} / ${ano}`;
+  if(!gruposCache.length){el.innerHTML='<div class="empty">Nenhum par cadastrado. Use o formulário acima para adicionar.</div>';return;}
   const ABRANG_LBL={todas:'Todas as funções',ef:'Educ. Física',adm:'Administrativo'};
-  el.innerHTML=rows.map(r=>{
-    const lab=sindicatos.find(s=>s.id===r.sind_lab_id);
-    const pat=sindicatos.find(s=>s.id===r.sind_pat_id);
+  const MODAL_LBL={presencial:'Presencial',hibrida:'Híbrida',remota:'Remota'};
+  el.innerHTML=gruposCache.map(gs=>{
+    const lab=sindicatos.find(s=>s.id===gs.sind_lab_id);
+    const pat=sindicatos.find(s=>s.id===gs.sind_pat_id);
+    const cct=pisosAno.find(p=>p.grupo_sindical_id===gs.id)
+      ||pisosAno.find(p=>p.abrangencia===gs.abrangencia&&p.tipo===gs.tipo&&(p.grupo||'principal')===(gs.grupo||'principal'));
+    const neg=negsAno.find(n=>n.grupo_sindical_id===gs.id)
+      ||negsAno.find(n=>n.funcao===gs.abrangencia&&n.tipo===gs.tipo&&(n.grupo||'principal')===(gs.grupo||'principal'));
+    const pairAssemb=assembAno.filter(a=>
+      (gs.sind_lab_id&&a.sindicato_id===gs.sind_lab_id)||(gs.sind_pat_id&&a.sindicato_id===gs.sind_pat_id));
+    const status=neg?.status||'aguardando';
+    const abrangLabel=ABRANG_LBL[gs.abrangencia]||gs.abrangencia||'Todas';
+    const grupoLabel=(gs.grupo&&gs.grupo!=='principal')?` · <strong>${gs.grupo}</strong>`:'';
     const labTxt=lab?`<strong style="color:var(--green)">${lab.sigla||lab.nome}</strong><span style="font-size:10px;color:var(--text-3);font-family:'JetBrains Mono',monospace"> ${lab.cnpj||''}</span>`
-      :'<span style="color:var(--text-3);font-style:italic">— não vinculado —</span>';
+      :'<span style="color:var(--text-3);font-style:italic">— laboral não vinculado —</span>';
     const patTxt=pat?`<strong style="color:var(--orange)">${pat.sigla||pat.nome}</strong><span style="font-size:10px;color:var(--text-3);font-family:'JetBrains Mono',monospace"> ${pat.cnpj||''}</span>`
-      :'<span style="color:var(--text-3);font-style:italic">— não vinculado —</span>';
-    return`<div class="rec-item">
-      <div class="rec-info">
-        <div class="rec-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span class="badge b-neg" style="font-size:9px">Laboral</span>${labTxt}
-          <span style="color:var(--text-3);font-weight:700">×</span>
-          <span class="badge b-warn" style="font-size:9px">Patronal</span>${patTxt}
+      :'<span style="color:var(--text-3);font-style:italic">— patronal não vinculado —</span>';
+    const statusOpts=Object.entries(STATUS_LABEL).map(([v,l])=>
+      `<option value="${v}"${status===v?' selected':''}>${l}</option>`).join('');
+    const cctHtml=cct?[
+      cct.pct?`<span class="badge b-ok" style="font-size:9px">${cct.pct}%</span>`:'',
+      cct.assinada?'<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>':'',
+      cct.publicada_mediador?'<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>':'',
+      cct.link_cct?`<a href="${cct.link_cct}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px" onclick="event.stopPropagation()">CCT ↗</a>`:'',
+      cct.link_adi?`<a href="${cct.link_adi}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px" onclick="event.stopPropagation()">Aditivo ↗</a>`:'',
+    ].filter(Boolean).join('')
+    :`<span class="badge b-gray" style="font-size:9px">Sem CCT em ${ano}</span>`;
+    const cctBtn=`<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;margin-left:auto" onclick="goAdmCCTs('${uf}')">${cct?'Editar CCT →':'+ Adicionar CCT'}</button>`;
+    const assembHtml=pairAssemb.length?`<div class="par-assemb-list">${pairAssemb.map(a=>{
+      const [y,m,d]=a.data_iso.split('-');
+      const sind=sindicatos.find(s=>s.id===a.sindicato_id);
+      return`<div class="par-assemb-item"><span style="font-family:'JetBrains Mono',monospace;color:var(--text-3)">${d}/${m}</span><span>${a.tipo||''}</span><span class="badge b-gray" style="font-size:9px">${MODAL_LBL[a.modalidade||'remota']||''}</span><span>${sind?sind.sigla||sind.nome:a.sindicato_nome||''}</span></div>`;
+    }).join('')}</div>`:'';
+    return`<div class="rec-item ${currentEditId.grupo===gs.id?'editing-active':''}" style="flex-direction:column;align-items:stretch;gap:0;cursor:default">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="rec-info" style="cursor:pointer" onclick="editGrupo(${gs.id})">
+          <div class="rec-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span class="badge b-neg" style="font-size:9px">Laboral</span>${labTxt}
+            <span style="color:var(--text-3);font-weight:700">×</span>
+            <span class="badge b-warn" style="font-size:9px">Patronal</span>${patTxt}
+          </div>
+          <div class="rec-sub">${abrangLabel} · ${gs.tipo||'Estado'}${grupoLabel}</div>
+          <div class="rec-hint">Clique para editar sindicatos do par</div>
         </div>
-        <div class="rec-sub">${ABRANG_LBL[r.abrangencia]||r.abrangencia||'Todas'} · ${r.tipo||'Estado'} · grupo: <strong>${r.grupo||'principal'}</strong></div>
+        <button class="btn btn-danger btn-sm" style="flex-shrink:0" onclick="delGrupo(${gs.id})">Excluir</button>
       </div>
-      <button class="btn btn-danger btn-sm" style="flex-shrink:0" onclick="delGrupo(${r.id})">Excluir</button>
+      <div class="par-actions">
+        <label style="font-size:11px;color:var(--text-3)">Status:</label>
+        <select class="status-inline" onchange="saveGrupoStatus(${gs.id},${ano},this.value)">${statusOpts}</select>
+        ${cctHtml}${cctBtn}
+      </div>
+      ${assembHtml}
     </div>`;
   }).join('');
+};
+
+// Salva o status diretamente do dropdown do par (sem abrir formulário)
+window.saveGrupoStatus=async function(grupoId,ano,status){
+  const gs=gruposCache.find(g=>g.id===grupoId);
+  if(!gs){toast('Par não encontrado.','err');return;}
+  const {error}=await sb.from('negociacoes').upsert(
+    {ano,uf:gs.uf,funcao:gs.abrangencia,tipo:gs.tipo,grupo:gs.grupo||'principal',grupo_sindical_id:grupoId,status},
+    {onConflict:'ano,grupo_sindical_id'}
+  );
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('Status atualizado!');
+};
+
+window.editGrupo=function(id){
+  const r=gruposCache.find(x=>x.id===id);if(!r)return;
+  currentEditId.grupo=id;
+  document.getElementById('gr-form-title').textContent='Editando par';
+  document.getElementById('gr-cancel').style.display='block';
+  document.getElementById('gr-save-btn').textContent='Salvar alterações';
+  document.getElementById('gr-lab').value=r.sind_lab_id||'';
+  document.getElementById('gr-pat').value=r.sind_pat_id||'';
+  document.getElementById('gr-abrang').value=r.abrangencia||'todas';
+  document.getElementById('gr-tipo').value=r.tipo||'Estado';
+  document.getElementById('gr-grupo').value=r.grupo||'principal';
+  // Abrangência/tipo/grupo são chave — não mudam em modo edição
+  document.getElementById('gr-abrang').disabled=true;
+  document.getElementById('gr-tipo').disabled=true;
+  document.getElementById('gr-grupo').disabled=true;
+  window.scrollTo({top:0,behavior:'smooth'});
+  toast('Par carregado. Edite os sindicatos e salve.','info');
+  renderGrupos();
+};
+
+window.cancelEditGrupo=function(){
+  currentEditId.grupo=null;
+  document.getElementById('gr-form-title').textContent='Adicionar par de sindicatos';
+  document.getElementById('gr-cancel').style.display='none';
+  document.getElementById('gr-save-btn').textContent='Adicionar par';
+  document.getElementById('gr-lab').value='';
+  document.getElementById('gr-pat').value='';
+  document.getElementById('gr-abrang').value='todas';  document.getElementById('gr-abrang').disabled=false;
+  document.getElementById('gr-tipo').value='Estado';   document.getElementById('gr-tipo').disabled=false;
+  document.getElementById('gr-grupo').value='principal';document.getElementById('gr-grupo').disabled=false;
+  renderGrupos();
 };
 
 window.saveGrupo=async function(){
@@ -1284,30 +1396,35 @@ window.saveGrupo=async function(){
   const lab=getVal('gr-lab');
   const pat=getVal('gr-pat');
   if(!lab&&!pat){toast('Selecione ao menos um sindicato.','err');return;}
-  const abrangencia=getVal('gr-abrang')||'todas',tipo=getVal('gr-tipo')||'Estado',grupo=getVal('gr-grupo')||'principal';
   const sindLabId=lab?parseInt(lab):null,sindPatId=pat?parseInt(pat):null;
-  // Cria/acha o grupo sindical primeiro — é ele que liga este par à
-  // CCT e à Negociação, mesmo antes de a CCT ter qualquer dado real.
+  if(currentEditId.grupo){
+    // Modo edição: só atualiza os sindicatos no grupos_sindicais (chave não muda)
+    const {error}=await sb.from('grupos_sindicais').update({sind_lab_id:sindLabId,sind_pat_id:sindPatId}).eq('id',currentEditId.grupo);
+    if(error){toast('Erro: '+error.message,'err');return;}
+    // Sincroniza pisos existentes do ano
+    await sb.from('pisos').update({sind_lab_id:sindLabId,sind_pat_id:sindPatId}).eq('grupo_sindical_id',currentEditId.grupo).eq('ano',ano);
+    toast('Par atualizado!');
+    cancelEditGrupo();
+    return;
+  }
+  // Modo adicionar: cria/acha o grupo sindical + garante negociação
+  const abrangencia=getVal('gr-abrang')||'todas',tipo=getVal('gr-tipo')||'Estado',grupo=getVal('gr-grupo')||'principal';
   const grupoSindicalId=await getOrCreateGrupoSindical({uf,abrangencia,tipo,grupo,sind_lab_id:sindLabId,sind_pat_id:sindPatId});
-  if(!grupoSindicalId){toast('Erro ao salvar o grupo sindical.','err');return;}
-  const payload={
-    ano,uf,
-    sind_lab_id:sindLabId,sind_pat_id:sindPatId,
-    abrangencia,tipo,grupo,grupo_sindical_id:grupoSindicalId,
-  };
-  const {error}=await sb.from('pisos').upsert(payload,{onConflict:'ano,uf,abrangencia,tipo,grupo'});
-  if(error){toast('Erro: '+error.message,'err');return;}
-  // Já deixa a Negociação deste par/ano disponível pra editar.
+  if(!grupoSindicalId){toast('Erro ao salvar o par sindical.','err');return;}
   await ensureNegociacaoParaGrupo({ano,uf,abrangencia,tipo,grupo,grupoSindicalId});
-  toast('Par salvo! Já disponível em CCTs e Negociações.');
-  renderGrupos();
+  toast('Par adicionado! Agora você pode definir o status e adicionar a CCT.');
+  cancelEditGrupo();
 };
 
 window.delGrupo=async function(id){
-  if(!confirm('Excluir este par?'))return;
-  const {error}=await sb.from('pisos').delete().eq('id',id);
+  if(!confirm('Excluir este par? As CCTs vinculadas são preservadas.'))return;
+  // Desvincula pisos e negociacoes (preserva os dados — só remove o vínculo)
+  await sb.from('pisos').update({grupo_sindical_id:null}).eq('grupo_sindical_id',id);
+  await sb.from('negociacoes').delete().eq('grupo_sindical_id',id);
+  const {error}=await sb.from('grupos_sindicais').delete().eq('id',id);
   if(error){toast('Erro: '+error.message,'err');return;}
-  toast('Par excluído.');
+  if(currentEditId.grupo===id)cancelEditGrupo();
+  toast('Par excluído. CCTs preservadas na aba CCTs.');
   renderGrupos();
 };
 
@@ -1564,7 +1681,7 @@ window.renderAdmMapa=async function(){
               ${assinadaH}${publicadaH}
               ${pctH}${dbH}${linksH}
               <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;margin-left:auto" onclick="goAdmNegPar('${e.uf}',${cct.grupo_sindical_id||'null'})">Editar status →</button>
-              <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px" onclick="setAdmNav('ccts',document.querySelector('.nav-item:nth-child(4)'));setTimeout(()=>loadCCTList(),100)">Editar CCT →</button>
+              <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px" onclick="goAdmCCTs('${e.uf}')">Editar CCT →</button>
             </div>
             <div class="adm-mapa-cct-body">
               <div class="adm-mapa-sind-row">${mkSindA(lab,'lab')}</div>
@@ -1666,46 +1783,36 @@ window.toggleAdmAssemb=function(uid){
 };
 
 // Helpers de navegação rápida do Mapa Admin
-// índices em querySelectorAll('.nav-item'): 0=Negociações,1=Assembleias,2=CCTs,3=Sindicatos,4=Encontros,5=Mapa
+// nav-item order: 0=Pares, 1=Assembleias, 2=CCTs, 3=Sindicatos, 4=Encontros, 5=Mapa, 6=Negociações(avançado)
+const navBtn=n=>document.querySelector(`#admin-panel .nav-item[onclick*="'${n}'"]`);
 window.goAdmCCTs=function(uf){
-  const btn=document.querySelectorAll('#admin-panel .nav-item')[2];
-  if(btn) setAdmNav('ccts',btn);
-  setTimeout(()=>{const sel=document.getElementById('cct-uf');if(sel){sel.value=uf;loadCCTList();}},150);
+  const btn=navBtn('ccts');if(btn) setAdmNav('ccts',btn);
+  setTimeout(()=>{const sel=document.getElementById('ca-uf');if(sel){sel.value=uf;loadCCTForm();}},150);
 };
 window.goAdmAssemb=function(uf){
-  const btn=document.querySelectorAll('#admin-panel .nav-item')[1];
-  if(btn) setAdmNav('assembleias',btn);
+  const btn=navBtn('assembleias');if(btn) setAdmNav('assembleias',btn);
   setTimeout(()=>{const sel=document.getElementById('as-uf');if(sel){sel.value=uf;renderAssemblList();}},150);
 };
 window.goAdmNegs=function(uf){
-  const btn=document.querySelectorAll('#admin-panel .nav-item')[0];
-  if(btn) setAdmNav('negociacoes',btn);
-  setTimeout(async ()=>{
-    const sel=document.getElementById('n-uf');
-    if(!sel)return;
-    sel.value=uf;
-    await loadNegCctOptions();
-    loadNegForm();
+  // "Editar status" do Mapa → abre aba Pares com o estado certo
+  const btn=navBtn('grupos');if(btn) setAdmNav('grupos',btn);
+  setTimeout(()=>{
+    const sel=document.getElementById('gr-uf');if(!sel)return;
+    sel.value=uf;renderGrupos();
+    window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
   },150);
 };
-// Atalho direto do Mapa: abre a aba Negociações já com o grupo
-// sindical certo selecionado (cada par tem seu próprio status).
 window.goAdmNegPar=function(uf,grupoSindicalId){
-  const btn=document.querySelectorAll('#admin-panel .nav-item')[0];
-  if(btn) setAdmNav('negociacoes',btn);
-  setTimeout(async ()=>{
-    const sel=document.getElementById('n-uf');
-    if(!sel)return;
-    sel.value=uf;
-    await loadNegCctOptions();
-    const cctSel=document.getElementById('n-cct');
-    if(cctSel&&grupoSindicalId)cctSel.value=String(grupoSindicalId);
-    loadNegForm();
+  // "Editar status →" de um par específico no Mapa → vai pra aba Pares
+  const btn=navBtn('grupos');if(btn) setAdmNav('grupos',btn);
+  setTimeout(()=>{
+    const sel=document.getElementById('gr-uf');if(!sel)return;
+    sel.value=uf;renderGrupos();
+    window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
   },150);
 };
 window.goAdmSinds=function(uf){
-  const btn=document.querySelectorAll('#admin-panel .nav-item')[3];
-  if(btn) setAdmNav('sindicatos',btn);
+  const btn=navBtn('sindicatos');if(btn) setAdmNav('sindicatos',btn);
   setTimeout(()=>{const sel=document.getElementById('sind-uf-f');if(sel){sel.value=uf;renderSindList();}},150);
 };
 
