@@ -135,6 +135,18 @@ label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercas
 .adm-mapa-empty{padding:10px 12px;font-size:11px;color:var(--text-3);text-align:center;font-style:italic}
 .b-orange{background:var(--orange-bg);color:var(--orange-tx)}
 .b-purple{background:var(--purple-bg);color:var(--purple-tx)}
+/* CCT lista */
+.cct-table{width:100%;border-collapse:collapse;font-size:12px}
+.cct-table th{background:var(--bg);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-2);padding:7px 10px;text-align:left;border-bottom:0.5px solid var(--border-md);white-space:nowrap}
+.cct-table td{padding:7px 10px;border-bottom:0.5px solid var(--border);vertical-align:top}
+.cct-table tr:last-child td{border-bottom:none}
+.cct-table tr:hover td{background:var(--brand-light)}
+.cct-table .uf-col{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--brand);white-space:nowrap}
+.cct-table .cnpj{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-3);display:block;margin-top:1px}
+.cct-table-wrap{overflow-x:auto;padding:0 14px 12px}
+.view-toggle{display:flex;gap:4px}
+.view-toggle button{font-family:inherit;font-size:11px;font-weight:600;padding:3px 9px;border-radius:5px;border:0.5px solid var(--border-md);background:var(--bg);color:var(--text-2);cursor:pointer}
+.view-toggle button.active{background:var(--brand);color:#fff;border-color:var(--brand)}
 </style>
 </head>
 <body>
@@ -357,8 +369,13 @@ label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercas
       </div>
     <div class="form-wrap" style="padding-top:0">
       <div class="fsection">
-        <div class="fsection-head">CCTs cadastradas</div>
-        <div class="records" id="cct-list"><div class="empty">Selecione um ano para ver as CCTs.</div></div>
+        <div class="fsection-head">CCTs cadastradas
+          <div class="view-toggle">
+            <button id="cct-view-btn-blocos" class="active" onclick="setCCTView('blocos')">Blocos</button>
+            <button id="cct-view-btn-lista" onclick="setCCTView('lista')">Lista</button>
+          </div>
+        </div>
+        <div id="cct-list"><div class="empty">Selecione um ano para ver as CCTs.</div></div>
       </div>
     </div>
   </div>
@@ -529,6 +546,7 @@ function parseLocalDate(iso){
 let sindicatos = [];
 let gruposCache = [];
 let currentEditId = { neg:null, assemb:null, cct:null, sind:null, enc:null, grupo:null };
+let cctViewMode = 'blocos';
 
 const ESTADOS = [
   {uf:"AC",nome:"Acre"},{uf:"AL",nome:"Alagoas"},{uf:"AM",nome:"Amazonas"},
@@ -1069,6 +1087,13 @@ window.delAssembleia=async function(id){
 };
 
 // ════════════════ CCTs ════════════════
+window.setCCTView=function(mode){
+  cctViewMode=mode;
+  document.getElementById('cct-view-btn-blocos').classList.toggle('active',mode==='blocos');
+  document.getElementById('cct-view-btn-lista').classList.toggle('active',mode==='lista');
+  loadCCTList();
+};
+
 window.loadCCTList=async function(){
   const anoEl=document.getElementById('ca-ano');
   const ano=parseInt(anoEl?.value);
@@ -1079,23 +1104,53 @@ window.loadCCTList=async function(){
   if(error){el.innerHTML=`<div class="empty" style="color:var(--red)">Erro: ${error.message}</div>`;return;}
   const rows=data||[];
   if(!rows.length){el.innerHTML=`<div class="empty">Nenhuma CCT em ${ano}. Selecione um estado acima para cadastrar.</div>`;return;}
-  el.innerHTML=rows.map(c=>`
-    <div class="rec-item ${currentEditId.cct===c.id?'editing-active':''}" onclick="editCCT(${c.id})">
-      <div class="rec-info">
-        <div class="rec-title">
-          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-2)">${c.uf}</span>
-          ${ESTADOS.find(e=>e.uf===c.uf)?.nome||c.uf}
-          ${c.pct?`<span style="font-size:11px;font-weight:600;color:var(--brand);font-family:'JetBrains Mono',monospace;margin-left:4px">${c.pct}%</span>`:''}
-          <span class="badge b-gray" style="margin-left:4px">${(ABRANG[c.abrangencia]||c.abrangencia||'')+(c.grupo&&c.grupo!=='principal'?' · '+c.grupo:'')}</span>
-          ${c.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:''}
-          ${c.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:''}
+
+  if(cctViewMode==='lista'){
+    const header=`<table class="cct-table"><thead><tr>
+      <th>UF</th><th>Estado</th>
+      <th>Laboral (sigla / CNPJ)</th><th>Patronal (sigla / CNPJ)</th>
+      <th>Função</th><th>Tipo</th><th>Status CCT</th>
+    </tr></thead><tbody>`;
+    const body=rows.map(c=>{
+      const lab=sindicatos.find(s=>s.id===c.sind_lab_id);
+      const pat=sindicatos.find(s=>s.id===c.sind_pat_id);
+      const labHtml=lab?`${lab.sigla||lab.nome}<span class="cnpj">${lab.cnpj||'—'}</span>`:'<span style="color:var(--text-3)">—</span>';
+      const patHtml=pat?`${pat.sigla||pat.nome}<span class="cnpj">${pat.cnpj||'—'}</span>`:'<span style="color:var(--text-3)">—</span>';
+      const funcao=(ABRANG[c.abrangencia]||c.abrangencia||'Todas')+(c.grupo&&c.grupo!=='principal'?' · '+c.grupo:'');
+      let statusHtml='';
+      if(c.publicada_mediador)statusHtml+=`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span> `;
+      if(c.assinada)statusHtml+=`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`;
+      if(!c.assinada&&!c.publicada_mediador)statusHtml=`<span class="badge b-warn" style="font-size:9px">Aguardando</span>`;
+      return `<tr onclick="editCCT(${c.id})" style="cursor:pointer">
+        <td class="uf-col">${c.uf}</td>
+        <td>${ESTADOS.find(e=>e.uf===c.uf)?.nome||c.uf}</td>
+        <td>${labHtml}</td>
+        <td>${patHtml}</td>
+        <td>${funcao}</td>
+        <td>${c.tipo||'Estado'}</td>
+        <td style="white-space:nowrap">${statusHtml}</td>
+      </tr>`;
+    }).join('');
+    el.innerHTML=`<div class="cct-table-wrap">${header}${body}</tbody></table></div>`;
+  } else {
+    el.innerHTML=`<div class="records">${rows.map(c=>`
+      <div class="rec-item ${currentEditId.cct===c.id?'editing-active':''}" onclick="editCCT(${c.id})">
+        <div class="rec-info">
+          <div class="rec-title">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-2)">${c.uf}</span>
+            ${ESTADOS.find(e=>e.uf===c.uf)?.nome||c.uf}
+            ${c.pct?`<span style="font-size:11px;font-weight:600;color:var(--brand);font-family:'JetBrains Mono',monospace;margin-left:4px">${c.pct}%</span>`:''}
+            <span class="badge b-gray" style="margin-left:4px">${(ABRANG[c.abrangencia]||c.abrangencia||'')+(c.grupo&&c.grupo!=='principal'?' · '+c.grupo:'')}</span>
+            ${c.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:''}
+            ${c.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:''}
+          </div>
+          <div class="rec-sub">${c.data_base?'Data base: '+c.data_base:''}</div>
+          <div class="rec-hint">Clique para editar</div>
         </div>
-        <div class="rec-sub">${c.data_base?'Data base: '+c.data_base:''}</div>
-        <div class="rec-hint">Clique para editar</div>
-      </div>
-      <button class="btn btn-danger btn-sm" style="flex-shrink:0"
-        onclick="event.stopPropagation();delCCT(${c.id})">Excluir</button>
-    </div>`).join('');
+        <button class="btn btn-danger btn-sm" style="flex-shrink:0"
+          onclick="event.stopPropagation();delCCT(${c.id})">Excluir</button>
+      </div>`).join('')}</div>`;
+  }
 };
 
 window.delCCT=async function(id){
