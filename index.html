@@ -175,16 +175,22 @@ input[type=text]{width:155px}
 .enc-links{display:flex;gap:6px;padding:0 13px 10px;flex-wrap:wrap}
 /* HISTÓRICO */
 .comp-section{padding:14px 20px}
-.yr-legend{display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap}
-.yr-leg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2)}
-.yr-dot{width:8px;height:8px;border-radius:50%}
-.comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
-.comp-card{background:var(--surface);border:0.5px solid var(--border-md);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow)}
-.comp-head{padding:9px 12px;background:var(--bg);border-bottom:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-.comp-row{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;border-bottom:0.5px solid var(--border);font-size:12px}
-.comp-row:last-child{border-bottom:none}
-.yv{font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace;min-width:38px;text-align:right}
-.y2023{color:var(--text-2)}.y2024{color:var(--amber)}.y2025{color:var(--brand)}.y2026{color:var(--green)}.y-em{color:var(--text-3);font-weight:400}
+.comp-table-wrap{background:var(--surface);border:0.5px solid var(--border-md);border-radius:var(--rl);box-shadow:var(--shadow);overflow-x:auto}
+.comp-table{width:100%;border-collapse:collapse;font-size:12px}
+.comp-table th{background:var(--bg);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-2);padding:8px 10px;text-align:left;border-bottom:0.5px solid var(--border-md);white-space:nowrap}
+.comp-table th.pct-col{text-align:center}
+.comp-table td{padding:6px 10px;border-bottom:0.5px solid var(--border);vertical-align:middle}
+.comp-table tr.comp-row-main{cursor:pointer}
+.comp-table tr.comp-row-main:hover td{filter:brightness(0.97)}
+.comp-table .estado-cell{font-weight:600;font-size:12px;white-space:nowrap}
+.comp-table .par-sub{font-size:10px;color:var(--text-2);font-weight:400;margin-top:1px}
+.comp-pct-cell{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:12px;text-align:center;border-radius:5px;padding:4px 6px}
+.comp-pct-empty{color:var(--text-3);text-align:center;font-weight:400}
+.comp-avg-cell{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;text-align:center;color:var(--brand)}
+.comp-toggle-icon{display:inline-block;transition:transform .15s;color:var(--text-3);font-size:10px;margin-right:5px}
+.comp-toggle-icon.open{transform:rotate(90deg)}
+.comp-detail-row td{padding:0;border-bottom:0.5px solid var(--border)}
+.comp-detail-row.closed{display:none}
 /* LOADING */
 .loading-screen{position:fixed;inset:0;background:var(--surface);display:flex;align-items:center;justify-content:center;z-index:100;flex-direction:column;gap:12px}
 .loading-dot{width:8px;height:8px;border-radius:50%;background:var(--brand);animation:ld 1.2s ease-in-out infinite}
@@ -476,15 +482,14 @@ input[type=text]{width:155px}
 
   <!-- HISTÓRICO -->
   <div id="view-comparativo" class="hidden">
-    <div class="topbar"><div class="page-title">Histórico de reajustes</div></div>
-    <div class="comp-section">
-      <div class="yr-legend">
-        <div class="yr-leg"><div class="yr-dot" style="background:var(--text-2)"></div>2023</div>
-        <div class="yr-leg"><div class="yr-dot" style="background:var(--amber)"></div>2024</div>
-        <div class="yr-leg"><div class="yr-dot" style="background:var(--brand)"></div>2025</div>
-        <div class="yr-leg"><div class="yr-dot" style="background:var(--green)"></div>2026</div>
+    <div class="topbar">
+      <div class="page-title">Histórico de reajustes</div>
+      <div class="tf">
+        <input type="text" id="comp-search" placeholder="Buscar estado..." oninput="renderComp()" style="width:160px">
       </div>
-      <div class="comp-grid" id="comp-grid"></div>
+    </div>
+    <div class="comp-section">
+      <div class="comp-table-wrap" id="comp-grid"></div>
     </div>
   </div>
 
@@ -1232,12 +1237,28 @@ window.togglePisos=function(id){
 
 
 
+function getPctParaGrupoAno(g,ano){
+  const neg=DATA.negociacoes.find(n=>n.grupo_sindical_id===g.id&&n.ano===ano)
+    ||DATA.negociacoes.find(n=>n.uf===g.uf&&n.funcao===g.abrangencia&&(n.tipo||'Estado')===(g.tipo||'Estado')&&(n.grupo||'principal')===(g.grupo||'principal')&&n.ano===ano);
+  const cct=DATA.ccts.find(c=>c.grupo_sindical_id===g.id&&c.ano===ano)
+    ||DATA.ccts.find(c=>c.uf===g.uf&&c.abrangencia===g.abrangencia&&(c.tipo||'Estado')===(g.tipo||'Estado')&&(c.grupo||'principal')===(g.grupo||'principal')&&c.ano===ano);
+  const raw=neg?.percentual||cct?.pct||null;
+  const num=raw!=null?parseFloat(String(raw).replace(',','.')):null;
+  return {raw, num:isNaN(num)?null:num, dataBase:cct?.data_base||neg?.data_base||null, cct, neg};
+}
+
+function pctCellColor(num,min,max){
+  if(num==null) return null;
+  const t=max>min?(num-min)/(max-min):0.5;
+  const c1=[238,242,255], c2=[27,79,216];
+  const r=Math.round(c1[0]+(c2[0]-c1[0])*t), gC=Math.round(c1[1]+(c2[1]-c1[1])*t), b=Math.round(c1[2]+(c2[2]-c1[2])*t);
+  return {bg:`rgb(${r},${gC},${b})`, fg:t>0.55?'#fff':'var(--brand-dark)'};
+}
+
 function renderComp(){
   const years=[2023,2024,2025,2026];
-  // Unir UFs de negociações e de CCTs
-  const ufsNeg=new Set(DATA.negociacoes.map(n=>n.uf));
-  const ufsCCT=new Set(DATA.ccts.map(c=>c.uf));
-  const ufs=[...new Set([...ufsNeg,...ufsCCT])].sort();
+  const srch=((document.getElementById('comp-search')||{}).value||'').toLowerCase();
+  const ABRANG_LBL_COMP={todas:'',ef:'Educ. Física',adm:'Administrativo'};
 
   const PISOS_COMP=[
     {k:'ef_men',   l:'Prof. EF mensalista'},
@@ -1249,79 +1270,93 @@ function renderComp(){
     {k:'vr_8h',    l:'VR/VA 8h'},
   ];
 
-  document.getElementById('comp-grid').innerHTML=ufs.map(uf=>{
-    const est=ESTADOS.find(e=>e.uf===uf);
+  let grupos=DATA.grupos.filter(g=>{
+    const est=ESTADOS.find(e=>e.uf===g.uf);
+    if(srch&&!(est?.nome||'').toLowerCase().includes(srch)&&!g.uf.toLowerCase().includes(srch)) return false;
+    return true;
+  }).sort((a,b)=>{
+    const na=ESTADOS.find(e=>e.uf===a.uf)?.nome||a.uf, nb=ESTADOS.find(e=>e.uf===b.uf)?.nome||b.uf;
+    return na.localeCompare(nb,'pt-BR')||a.id-b.id;
+  });
 
-    // Linha de reajuste por ano — com sindicato
-    const negRows=years.map(y=>{
-      // Pegar todas as negociações do estado/ano (pode ser múltiplas)
-      const negsAno=DATA.negociacoes.filter(n=>n.ano===y&&n.uf===uf);
-      if(!negsAno.length) return`<div class="comp-row">
-        <span style="color:var(--text-2);font-size:12px;min-width:36px">${y}</span>
-        <span class="yv" style="color:var(--text-3)">—</span>
-      </div>`;
+  // dados de cada linha (pct por ano) + escala de cor global
+  const linhas=grupos.map(g=>{
+    const porAno={};
+    years.forEach(y=>{ porAno[y]=getPctParaGrupoAno(g,y); });
+    const nums=years.map(y=>porAno[y].num).filter(v=>v!=null);
+    const media=nums.length?(nums.reduce((a,b)=>a+b,0)/nums.length):null;
+    return {g,porAno,media};
+  });
+  const todosNums=linhas.flatMap(l=>years.map(y=>l.porAno[y].num)).filter(v=>v!=null);
+  const min=todosNums.length?Math.min(...todosNums):0, max=todosNums.length?Math.max(...todosNums):0;
 
-      return negsAno.map(n=>{
-        const sind=n.sind_id?getSind(n.sind_id):null;
-        const funcaoLabel={todas:'',ef:' · Educ. Física',adm:' · Administrativo'};
-        const funcaoSuf=n.funcao&&n.funcao!=='todas'?funcaoLabel[n.funcao]||'':'';
-        const pctStr=n.percentual?n.percentual+'%':(n.pct_proposto?'Prop: '+n.pct_proposto+'%':'—');
-        return`<div class="comp-row" style="flex-direction:column;align-items:flex-start;gap:2px;padding:5px 12px">
-          <div style="display:flex;align-items:center;gap:8px;width:100%">
-            <span style="color:var(--text-2);font-size:12px;min-width:36px;flex-shrink:0">${y}</span>
-            <span class="yv y${y}">${pctStr}</span>
-            ${n.data_base?`<span style="font-size:10px;color:var(--text-3)">${n.data_base}</span>`:''}
-            ${funcaoSuf?`<span class="badge b-gray" style="font-size:9px">${funcaoSuf.replace(' · ','')}</span>`:''}
-          </div>
-          ${sind?`<div style="font-size:11px;color:var(--text-2);padding-left:44px">
-            <span class="badge ${sind.tipo==='laboral'?'b-neg':'b-warn'}" style="font-size:9px">${sind.tipo==='laboral'?'Lab.':'Pat.'}</span>
-            ${sind.sigla||sind.nome}
-          </div>`:''}
-        </div>`;
-      }).join('');
+  if(!linhas.length){ document.getElementById('comp-grid').innerHTML='<div class="empty">Nenhum estado encontrado.</div>'; return; }
+
+  const header=`<table class="comp-table"><thead><tr>
+    <th>Estado / Par</th>
+    ${years.map(y=>`<th class="pct-col">${y}</th>`).join('')}
+    <th class="pct-col">⌀ Média</th>
+  </tr></thead><tbody>`;
+
+  const body=linhas.map((l,idx)=>{
+    const g=l.g;
+    const est=ESTADOS.find(e=>e.uf===g.uf);
+    const lab=getSind(g.sind_lab_id), pat=getSind(g.sind_pat_id);
+    const subParts=[
+      lab||pat?`${lab?.sigla||lab?.nome||'?'} × ${pat?.sigla||pat?.nome||'?'}`:'',
+      ABRANG_LBL_COMP[g.abrangencia]||'',
+      g.tipo&&g.tipo!=='Estado'?g.tipo:'',
+    ].filter(Boolean);
+    const rid=`comp-${g.id}`;
+
+    const pctCells=years.map(y=>{
+      const d=l.porAno[y];
+      if(d.num==null) return `<td class="comp-pct-empty">—</td>`;
+      const c=pctCellColor(d.num,min,max);
+      return `<td><div class="comp-pct-cell" style="background:${c.bg};color:${c.fg}" title="${d.dataBase||''}">${d.raw}%</div></td>`;
     }).join('');
 
-    // Tabela de pisos por ano — só colunas que têm ao menos 1 valor
-    const cctsPorAno={};
-    years.forEach(y=>{ cctsPorAno[y]=DATA.ccts.find(c=>c.ano===y&&c.uf===uf)||null; });
-    const colsVisiveis=PISOS_COMP.filter(p=>years.some(y=>cctsPorAno[y]?.[p.k]));
+    const mainRow=`<tr class="comp-row-main" onclick="toggleCompDetail('${rid}')">
+      <td class="estado-cell">
+        <span class="comp-toggle-icon" id="${rid}-icon">▶</span>${est?.nome||g.uf}
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-3);margin-left:4px">${g.uf}</span>
+        ${subParts.length?`<div class="par-sub">${subParts.join(' · ')}</div>`:''}
+      </td>
+      ${pctCells}
+      <td class="comp-avg-cell">${l.media!=null?l.media.toFixed(2).replace('.',',')+'%':'—'}</td>
+    </tr>`;
 
-    const pisosTable=colsVisiveis.length?`
-      <div style="overflow-x:auto;border-top:0.5px solid var(--border)">
-        <table style="width:100%;border-collapse:collapse;font-size:11px">
-          <thead>
-            <tr style="background:var(--bg)">
-              <th style="padding:5px 8px;text-align:left;font-size:10px;color:var(--text-3);font-weight:600;border-bottom:0.5px solid var(--border);white-space:nowrap">CCT</th>
-              ${colsVisiveis.map(p=>`<th style="padding:5px 8px;text-align:left;font-size:10px;color:var(--text-3);font-weight:600;border-bottom:0.5px solid var(--border);white-space:nowrap">${p.l}</th>`).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            ${years.filter(y=>cctsPorAno[y]).map(y=>`
-              <tr>
-                <td style="padding:5px 8px;font-weight:600;font-size:11px;color:var(--text-2);font-family:'JetBrains Mono',monospace;border-bottom:0.5px solid var(--border)">${y}</td>
-                ${colsVisiveis.map(p=>`<td style="padding:5px 8px;font-size:11px;font-family:'JetBrains Mono',monospace;border-bottom:0.5px solid var(--border);white-space:nowrap">${cctsPorAno[y]?.[p.k]||'—'}</td>`).join('')}
-              </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>`:'';
+    const colsVisiveis=PISOS_COMP.filter(p=>years.some(y=>l.porAno[y].cct?.[p.k]));
+    const detailTable=colsVisiveis.length?`
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr style="background:var(--bg)">
+          <th style="padding:5px 8px;text-align:left;font-size:10px;color:var(--text-3);font-weight:600;border-bottom:0.5px solid var(--border);white-space:nowrap">Ano</th>
+          ${colsVisiveis.map(p=>`<th style="padding:5px 8px;text-align:left;font-size:10px;color:var(--text-3);font-weight:600;border-bottom:0.5px solid var(--border);white-space:nowrap">${p.l}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+          ${years.filter(y=>l.porAno[y].cct).map(y=>`
+            <tr>
+              <td style="padding:5px 8px;font-weight:600;font-size:11px;color:var(--text-2);font-family:'JetBrains Mono',monospace;border-bottom:0.5px solid var(--border)">${y}</td>
+              ${colsVisiveis.map(p=>`<td style="padding:5px 8px;font-size:11px;font-family:'JetBrains Mono',monospace;border-bottom:0.5px solid var(--border);white-space:nowrap">${l.porAno[y].cct?.[p.k]||'—'}</td>`).join('')}
+            </tr>`).join('')}
+        </tbody>
+      </table>`:`<div style="padding:10px 14px;font-size:11px;color:var(--text-3);font-style:italic">Sem dados de piso salarial cadastrados.</div>`;
 
-    const media = calcMediaHistorico(uf);
-    return`<div class="comp-card">
-      <div class="comp-head">
-        <span style="font-size:13px;font-weight:600">${est?.nome||uf}</span>
-        <div style="display:flex;align-items:center;gap:6px">
-          ${media?`<span title="Média dos últimos anos" style="font-size:11px;font-weight:600;background:var(--brand-light);color:var(--brand);padding:2px 8px;border-radius:5px">⌀ ${media}%</span>`:''}
-          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-2);background:var(--bg);border:0.5px solid var(--border-md);border-radius:4px;padding:2px 7px">${uf}</span>
-        </div>
-      </div>
-      <div style="padding:4px 0">
-        <div style="padding:5px 12px 2px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)">Reajuste por ano</div>
-        ${negRows}
-      </div>
-      ${pisosTable}
-    </div>`;
+    const detailRow=`<tr class="comp-detail-row closed" id="${rid}-row"><td colspan="${years.length+2}">${detailTable}</td></tr>`;
+
+    return mainRow+detailRow;
   }).join('');
+
+  document.getElementById('comp-grid').innerHTML=`${header}${body}</tbody></table>`;
 }
+
+window.toggleCompDetail=function(rid){
+  const row=document.getElementById(rid+'-row');
+  const icon=document.getElementById(rid+'-icon');
+  if(!row) return;
+  const open=row.classList.toggle('closed');
+  icon.classList.toggle('open',!open);
+};
 
 // ── INIT ──
 const ysw=document.getElementById('ysw');
@@ -1449,20 +1484,6 @@ function renderCalList(){
   </table>`;
 }
 window.renderCalList = renderCalList;
-
-// ════════════ MÉDIA DO HISTÓRICO ════════════
-function calcMediaHistorico(uf){
-  const anos = [2023,2024,2025,2026];
-  const vals = anos.map(y=>{
-    const negs = DATA.negociacoes.filter(n=>n.ano===y&&n.uf===uf&&n.percentual);
-    if(!negs.length) return null;
-    // Média dos percentuais do estado naquele ano
-    const nums = negs.map(n=>parseFloat(String(n.percentual).replace(',','.'))).filter(v=>!isNaN(v));
-    return nums.length ? nums.reduce((a,b)=>a+b,0)/nums.length : null;
-  }).filter(v=>v!==null);
-  if(!vals.length) return null;
-  return (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2).replace('.',',');
-}
 
 // Navegar para CCT de um estado específico
 window.irParaCCT = function(uf){
