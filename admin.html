@@ -1109,7 +1109,7 @@ window.loadCCTList=async function(){
     const header=`<table class="cct-table"><thead><tr>
       <th>UF</th><th>Estado</th>
       <th>Laboral (sigla / CNPJ)</th><th>Patronal (sigla / CNPJ)</th>
-      <th>Função</th><th>Tipo</th><th>Status CCT</th>
+      <th>Função</th><th>Tipo</th><th>Data Base</th><th>Status CCT</th>
     </tr></thead><tbody>`;
     const body=rows.map(c=>{
       const lab=sindicatos.find(s=>s.id===c.sind_lab_id);
@@ -1128,6 +1128,7 @@ window.loadCCTList=async function(){
         <td>${patHtml}</td>
         <td>${funcao}</td>
         <td>${c.tipo||'Estado'}</td>
+        <td style="white-space:nowrap">${c.data_base||'—'}</td>
         <td style="white-space:nowrap">${statusHtml}</td>
       </tr>`;
     }).join('');
@@ -1369,7 +1370,7 @@ window.renderGrupos=async function(){
       cct.link_cct?`<a href="${cct.link_cct}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px" onclick="event.stopPropagation()">CCT ↗</a>`:'',
       cct.link_adi?`<a href="${cct.link_adi}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px" onclick="event.stopPropagation()">Aditivo ↗</a>`:'',
     ].filter(Boolean).join('')
-    :`<span class="badge b-gray" style="font-size:9px">Sem CCT em ${ano}</span>`;
+    :'';
     const cctBtn=`<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;margin-left:auto" onclick="goAdmCCTs('${uf}')">${cct?'Editar CCT →':'+ Adicionar CCT'}</button>`;
     const assembHtml=pairAssemb.length?`<div class="par-assemb-list">${pairAssemb.map(a=>{
       const [y,m,d]=a.data_iso.split('-');
@@ -1748,7 +1749,7 @@ window.renderAdmMapa=async function(){
         const all=[...laborais.map(s=>({...s,papel:'laboral'})),...patronais.map(s=>({...s,papel:'patronal'}))];
         const stH=negs.length?`<span class="badge ${ST_BADGE_ADM[negs[0].status||'aguardando']}">${ST_LABEL_ADM[negs[0].status||'aguardando']}</span>`:'';
         cctHtml=`<div class="adm-mapa-cct">
-          <div class="adm-mapa-cct-meta"><span class="badge b-gray">Sem CCT em ${ano}</span>${stH}</div>
+          <div class="adm-mapa-cct-meta">${stH}</div>
           <div class="adm-mapa-cct-body">
             ${all.map(s=>`<div class="adm-mapa-sind-row">
               <span class="badge ${s.papel==='laboral'?'b-neg':'b-warn'}" style="font-size:9px">${s.papel==='laboral'?'Laboral':'Patronal'}</span>

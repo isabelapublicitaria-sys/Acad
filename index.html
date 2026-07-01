@@ -955,7 +955,7 @@ function getEstadoCCTRows(e,anoRef){
         ||negs.find(n=>n.funcao===gs.abrangencia&&n.tipo===gs.tipo&&(n.grupo||'principal')===(gs.grupo||'principal'))
         ||{};
       rows.push({uf:e.uf,nome:e.nome,lab,pat,abrangencia:gs.abrangencia,tipo:gs.tipo,
-        status:neg.status||'aguardando',pct:neg.percentual||c?.pct,
+        status:neg.status||'aguardando',pct:neg.percentual||c?.pct,dataBase:c?.data_base||neg.data_base,
         assinada:c?.assinada,publicada_mediador:c?.publicada_mediador,temCCT:!!c});
     });
   } else if(ccts.length){
@@ -968,7 +968,7 @@ function getEstadoCCTRows(e,anoRef){
         ||negs.find(n=>n.funcao===(c.abrangencia||'todas')&&(n.tipo||'Estado')===(c.tipo||'Estado'))
         ||negs.find(n=>n.funcao===(c.abrangencia||'todas'))||{};
       rows.push({uf:e.uf,nome:e.nome,lab,pat,abrangencia:c.abrangencia,tipo:c.tipo,
-        status:neg.status||'aguardando',pct:neg.percentual||c.pct,
+        status:neg.status||'aguardando',pct:neg.percentual||c.pct,dataBase:c.data_base||neg.data_base,
         assinada:c.assinada,publicada_mediador:c.publicada_mediador,temCCT:true});
     });
   } else {
@@ -977,7 +977,7 @@ function getEstadoCCTRows(e,anoRef){
       const labDB=DATA.sindicatos.find(s=>s.uf===e.uf&&s.tipo==='laboral'&&(s.cnpj===pair.lab?.cnpj||s.sigla===pair.lab?.sigla));
       const patDB=DATA.sindicatos.find(s=>s.uf===e.uf&&s.tipo==='patronal'&&(s.cnpj===pair.pat?.cnpj||s.sigla===pair.pat?.sigla));
       rows.push({uf:e.uf,nome:e.nome,lab:labDB||pair.lab,pat:patDB||pair.pat,abrangencia:pair.abrang,tipo:pair.cob,
-        status:negs.length?(negs[0].status||'aguardando'):'aguardando',pct:null,
+        status:negs.length?(negs[0].status||'aguardando'):'aguardando',pct:null,dataBase:negs[0]?.data_base,
         assinada:false,publicada_mediador:false,temCCT:false});
     });
   }
@@ -1033,7 +1033,7 @@ function renderCCTs(){
     const header=`<table class="cct-table"><thead><tr>
       <th>UF</th><th>Estado</th>
       <th>Laboral (sigla / CNPJ)</th><th>Patronal (sigla / CNPJ)</th>
-      <th>Função</th><th>Tipo</th><th>Status</th><th>CCT</th>
+      <th>Função</th><th>Tipo</th><th>Data Base</th><th>Status</th><th>CCT</th>
     </tr></thead><tbody>`;
     const body=allRows.map(r=>{
       const funcao=ABRANG_LBL[r.abrangencia||'todas']||r.abrangencia||'—';
@@ -1042,8 +1042,6 @@ function renderCCTs(){
         if(r.publicada_mediador)cctHtml+=`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span> `;
         if(r.assinada)cctHtml+=`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span> `;
         if(r.pct)cctHtml+=`<span class="pct-chip">${r.pct}%</span>`;
-      } else {
-        cctHtml=`<span class="badge b-gray" style="font-size:9px">Sem CCT em ${anoRef}</span>`;
       }
       return `<tr>
         <td class="uf-col">${r.uf}</td>
@@ -1052,6 +1050,7 @@ function renderCCTs(){
         <td>${mkSindCell(r.pat)}</td>
         <td>${funcao}</td>
         <td>${r.tipo||'Estado'}</td>
+        <td style="white-space:nowrap">${r.dataBase||'—'}</td>
         <td><span class="badge ${STATUS_BADGE[r.status]}" style="font-size:9px">${STATUS_LABEL[r.status]}</span></td>
         <td style="white-space:nowrap">${cctHtml}</td>
       </tr>`;
@@ -1098,7 +1097,7 @@ function renderCCTs(){
             extraH=`${assinadaH}${publicadaH}${pctH}${dbH}${vigH}${linksH}`;
             pisosHtml=gerarPisosHtml(c,true);
           } else {
-            extraH=`<span class="badge b-gray" style="font-size:9px">Sem CCT em ${anoRef}</span>${pctH}`;
+            extraH=`${pctH}`;
           }
           const pid=`${e.uf}-${gs.id}`;
           return`<div class="mapa-cct">
@@ -1166,7 +1165,7 @@ function renderCCTs(){
             return`<div class="mapa-cct">
               <div class="mapa-cct-meta">
                 <span class="badge ${ABRANG_BADGE[pair.abrang||'todas']}">${ABRANG_LBL[pair.abrang||'todas']}</span>
-                ${tipoH}<span class="badge b-gray" style="font-size:10px">Sem CCT em ${anoRef}</span>${stH}
+                ${tipoH}${stH}
               </div>
               <div class="mapa-cct-sinds">${mkSind(labDB||pair.lab,'lab')}${mkSind(patDB||pair.pat,'pat')}</div>
             </div>`;
@@ -1702,7 +1701,7 @@ function renderMapa(){
             ].filter(Boolean).join('');
             extraH=`${assinadaH}${publicadaH}${pctH}${dbH}${vigH}${linksH}`;
           } else {
-            extraH=`<span class="badge b-gray" style="font-size:9px">Sem CCT em ${currentYear}</span>${pctH}`;
+            extraH=`${pctH}`;
           }
           return`<div class="mapa-cct">
             <div class="mapa-cct-meta">
@@ -1766,7 +1765,6 @@ function renderMapa(){
               <div class="mapa-cct-meta">
                 <span class="badge ${ABRANG_BADGE[pair.abrang||'todas']}">${ABRANG_LBL[pair.abrang||'todas']}</span>
                 ${tipoH}
-                <span class="badge b-gray" style="font-size:10px">Sem CCT em ${currentYear}</span>
                 ${stH}
               </div>
               <div class="mapa-cct-sinds">${mkSind(lab,'lab')}${mkSind(pat,'pat')}</div>
@@ -1774,7 +1772,7 @@ function renderMapa(){
           }).join('');
         } else if(laborais.length||patronais.length){
           cctBodyHtml=`<div class="mapa-cct">
-            <div class="mapa-cct-meta"><span class="badge b-gray">Sem CCT em ${currentYear}</span>${stH}</div>
+            <div class="mapa-cct-meta">${stH}</div>
             <div class="mapa-cct-sinds">${mkSind(laborais[0]||null,'lab')}${mkSind(patronais[0]||null,'pat')}</div>
           </div>`;
         } else {
