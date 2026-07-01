@@ -144,6 +144,10 @@ label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercas
 .cct-table .uf-col{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--brand);white-space:nowrap}
 .cct-table .cnpj{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-3);display:block;margin-top:1px}
 .cct-table-wrap{overflow-x:auto;padding:0 14px 12px}
+.comp-toggle-icon{display:inline-block;transition:transform .15s;color:var(--text-3);font-size:10px;margin-right:5px}
+.comp-toggle-icon.open{transform:rotate(90deg)}
+.comp-detail-row td{padding:0;border-bottom:0.5px solid var(--border)}
+.comp-detail-row.closed{display:none}
 .view-toggle{display:flex;gap:4px}
 .view-toggle button{font-family:inherit;font-size:11px;font-weight:600;padding:3px 9px;border-radius:5px;border:0.5px solid var(--border-md);background:var(--bg);color:var(--text-2);cursor:pointer}
 .view-toggle button.active{background:var(--brand);color:#fff;border-color:var(--brand)}
@@ -569,6 +573,49 @@ const ESTADOS = [
 const STATUS_LABEL = {negociacao:"Em negociação",aguardando:"Aguardando data base",sem_acordo:"Sem acordo",concluido:"Acordo finalizado",vigente:"CCT vigente (sem negociação)"};
 const STATUS_BADGE = {negociacao:"b-neg",aguardando:"b-warn",sem_acordo:"b-red",concluido:"b-ok",vigente:"b-teal"};
 const ABRANG = {todas:"Todas as funções",ef:"Educ. Física",adm:"Administrativo"};
+
+const PISOS_DEF=[
+  {sec:"Educação Física — Mensalistas",items:[{k:"ef_men",l:"Prof. EF mensalista"},{k:"ef_cmen",l:"Coord. EF mensalista"},{k:"ef_resp",l:"Resp. técnico (superior)"}]},
+  {sec:"Educação Física — Horistas",items:[{k:"ef_hor",l:"Prof. EF horista"},{k:"ef_chor",l:"Coord./Técnico horista"},{k:"ef_col",l:"Aulas coletivas"}]},
+  {sec:"Administrativo",items:[{k:"adm_44",l:"Administrativo 44h"},{k:"adm_sup",l:"Adm./Coord. superior"},{k:"adm_dia",l:"Administrativo diária"},{k:"serv_gerais",l:"Serviços gerais 44h"}]},
+  {sec:"Benefícios",items:[{k:"cesta",l:"Cesta básica"},{k:"vr_8h",l:"VR/VA 8h"},{k:"vr_7h",l:"VR/VA 7h ou mais"},{k:"vr_6h",l:"VR/VA 6h"},{k:"vr_4h",l:"VR/VA 4h"},{k:"anuenio",l:"Anuênio/Biênio/Quinquênio"},{k:"vale_transporte",l:"Vale transporte"},{k:"adic_noturno",l:"Adicional noturno"},{k:"quebra_caixa",l:"Gratif. caixa / Quebra de caixa"},{k:"bsf",l:"BSF — Benef. Social Familiar"},{k:"outros",l:"Outros benefícios"}]},
+  {sec:"Contribuições sindicais",items:[{k:"cont_assist",l:"Contribuição Assistencial"},{k:"cont_patronal",l:"Contribuição Patronal"},{k:"cont_laboral",l:"Contribuição Laboral"}]},
+];
+
+// Padroniza exibição de valores monetários (adiciona "R$" quando falta).
+// Percentuais e texto livre (contém "%" ou não começa com número) ficam como estão.
+function fmtMoney(v){
+  if(!v) return v;
+  const t=String(v).trim();
+  if(!t||t.includes('%')||/^r\$/i.test(t)) return v;
+  return /^-?\d/.test(t) ? `R$ ${t}` : v;
+}
+
+function gerarPisosHtml(c, soPreenchidos=false){
+  let html='';
+  PISOS_DEF.forEach(sec=>{
+    const items = soPreenchidos ? sec.items.filter(it=>c[it.k]) : sec.items;
+    if(!items.length) return;
+    html+=`<div style="margin-bottom:8px">
+      <div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);margin-bottom:4px">${sec.sec}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:4px">
+        ${items.map(it=>`<div style="background:var(--bg);border:0.5px solid var(--border);border-radius:4px;padding:4px 7px">
+          <div style="font-size:9px;color:var(--text-3);margin-bottom:1px">${it.l}</div>
+          <div style="font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace;color:${c[it.k]?'inherit':'var(--text-3)'}">${fmtMoney(c[it.k])||'—'}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  });
+  return html;
+}
+
+window.toggleListDetail=function(rid){
+  const row=document.getElementById(rid+'-row');
+  const icon=document.getElementById(rid+'-icon');
+  if(!row) return;
+  const open=row.classList.toggle('closed');
+  icon.classList.toggle('open',!open);
+};
 
 // ── Helpers ──
 function toast(msg, type='ok'){
@@ -1115,7 +1162,7 @@ window.loadCCTList=async function(){
       <th>Laboral (sigla / CNPJ)</th><th>Patronal (sigla / CNPJ)</th>
       <th>Função</th><th>Tipo</th><th>Data Base</th><th>Status CCT</th>
     </tr></thead><tbody>`;
-    const body=rows.map(c=>{
+    const body=rows.map((c,idx)=>{
       const lab=sindicatos.find(s=>s.id===c.sind_lab_id);
       const pat=sindicatos.find(s=>s.id===c.sind_pat_id);
       const labHtml=lab?`${lab.sigla||lab.nome}<span class="cnpj">${lab.cnpj||'—'}</span>`:'<span style="color:var(--text-3)">—</span>';
@@ -1125,8 +1172,11 @@ window.loadCCTList=async function(){
       if(c.publicada_mediador)statusHtml+=`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span> `;
       if(c.assinada)statusHtml+=`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`;
       if(!c.assinada&&!c.publicada_mediador)statusHtml=`<span class="badge b-warn" style="font-size:9px">Aguardando</span>`;
+      const rid=`admcct-${idx}`;
+      const pisosHtml=gerarPisosHtml(c,true);
+      const detailBody=pisosHtml?`<div style="padding:10px 14px">${pisosHtml}</div>`:`<div style="padding:10px 14px;font-size:11px;color:var(--text-3);font-style:italic">Sem dados de piso salarial cadastrados.</div>`;
       return `<tr onclick="editCCT(${c.id})" style="cursor:pointer">
-        <td class="uf-col">${c.uf}</td>
+        <td class="uf-col"><span class="comp-toggle-icon" id="${rid}-icon" onclick="event.stopPropagation();toggleListDetail('${rid}')">▶</span>${c.uf}</td>
         <td>${ESTADOS.find(e=>e.uf===c.uf)?.nome||c.uf}</td>
         <td>${labHtml}</td>
         <td>${patHtml}</td>
@@ -1134,7 +1184,8 @@ window.loadCCTList=async function(){
         <td>${c.tipo||'Estado'}</td>
         <td style="white-space:nowrap">${c.data_base||'—'}</td>
         <td style="white-space:nowrap">${statusHtml}</td>
-      </tr>`;
+      </tr>
+      <tr class="comp-detail-row closed" id="${rid}-row" onclick="event.stopPropagation()"><td colspan="8">${detailBody}</td></tr>`;
     }).join('');
     el.innerHTML=`<div class="cct-table-wrap">${header}${body}</tbody></table></div>`;
   } else {
@@ -1371,7 +1422,8 @@ window.renderGrupos=async function(){
       cct.pct?`<span class="badge b-ok" style="font-size:9px">${cct.pct}%</span>`:'',
       cct.assinada?'<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>':'',
       cct.publicada_mediador?'<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>':'',
-      cct.link_cct?`<a href="${cct.link_cct}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px" onclick="event.stopPropagation()">CCT ↗</a>`:'',
+      cct.link_cct?`<a href="${cct.link_cct}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px" onclick="event.stopPropagation()">Mediador ↗</a>`:'',
+      cct.link_drv?`<a href="${cct.link_drv}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px" onclick="event.stopPropagation()">Drive ↗</a>`:'',
       cct.link_adi?`<a href="${cct.link_adi}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px" onclick="event.stopPropagation()">Aditivo ↗</a>`:'',
     ].filter(Boolean).join('')
     :'';
@@ -1735,7 +1787,8 @@ window.renderAdmMapa=async function(){
           const assinadaH=cct.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:'';
           const publicadaH=cct.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:'';
           const linksH=[
-            cct.link_cct?`<a href="${cct.link_cct}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px">CCT ↗</a>`:'',
+            cct.link_cct?`<a href="${cct.link_cct}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px">Mediador ↗</a>`:'',
+            cct.link_drv?`<a href="${cct.link_drv}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px">Drive ↗</a>`:'',
             cct.link_adi?`<a href="${cct.link_adi}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px">Aditivo ↗</a>`:'',
           ].filter(Boolean).join('');
           return `<div class="adm-mapa-cct">

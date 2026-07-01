@@ -960,7 +960,7 @@ function getEstadoCCTRows(e,anoRef){
         ||{};
       rows.push({uf:e.uf,nome:e.nome,lab,pat,abrangencia:gs.abrangencia,tipo:gs.tipo,
         status:neg.status||'aguardando',pct:c?.pct||neg.percentual,dataBase:c?.data_base||neg.data_base||gs.data_base,
-        assinada:c?.assinada,publicada_mediador:c?.publicada_mediador,temCCT:!!c});
+        assinada:c?.assinada,publicada_mediador:c?.publicada_mediador,temCCT:!!c,cct:c||null});
     });
   } else if(ccts.length){
     ccts.forEach(c=>{
@@ -973,7 +973,7 @@ function getEstadoCCTRows(e,anoRef){
         ||negs.find(n=>n.funcao===(c.abrangencia||'todas'))||{};
       rows.push({uf:e.uf,nome:e.nome,lab,pat,abrangencia:c.abrangencia,tipo:c.tipo,
         status:neg.status||'aguardando',pct:c.pct||neg.percentual,dataBase:c.data_base||neg.data_base,
-        assinada:c.assinada,publicada_mediador:c.publicada_mediador,temCCT:true});
+        assinada:c.assinada,publicada_mediador:c.publicada_mediador,temCCT:true,cct:c});
     });
   } else {
     const basePairs=SINDICATOS_BASE.filter(p=>p.uf===e.uf);
@@ -982,7 +982,7 @@ function getEstadoCCTRows(e,anoRef){
       const patDB=DATA.sindicatos.find(s=>s.uf===e.uf&&s.tipo==='patronal'&&(s.cnpj===pair.pat?.cnpj||s.sigla===pair.pat?.sigla));
       rows.push({uf:e.uf,nome:e.nome,lab:labDB||pair.lab,pat:patDB||pair.pat,abrangencia:pair.abrang,tipo:pair.cob,
         status:negs.length?(negs[0].status||'aguardando'):'aguardando',pct:null,dataBase:negs[0]?.data_base,
-        assinada:false,publicada_mediador:false,temCCT:false});
+        assinada:false,publicada_mediador:false,temCCT:false,cct:null});
     });
   }
   return rows;
@@ -1038,7 +1038,7 @@ function renderCCTs(){
       <th>Laboral (sigla / CNPJ)</th><th>Patronal (sigla / CNPJ)</th>
       <th>Função</th><th>Tipo</th><th>Data Base</th><th>Status</th><th>CCT</th>
     </tr></thead><tbody>`;
-    const body=allRows.map(r=>{
+    const body=allRows.map((r,idx)=>{
       const funcao=ABRANG_LBL[r.abrangencia||'todas']||r.abrangencia||'—';
       let cctHtml='';
       if(r.temCCT){
@@ -1046,8 +1046,11 @@ function renderCCTs(){
         if(r.assinada)cctHtml+=`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span> `;
         if(r.pct)cctHtml+=`<span class="pct-chip">${r.pct}%</span>`;
       }
-      return `<tr>
-        <td class="uf-col">${r.uf}</td>
+      const rid=`cctlist-${idx}`;
+      const pisosHtml=r.cct?gerarPisosHtml(r.cct,true):'';
+      const detailBody=pisosHtml?`<div style="padding:10px 14px">${pisosHtml}</div>`:`<div style="padding:10px 14px;font-size:11px;color:var(--text-3);font-style:italic">Sem dados de piso salarial cadastrados.</div>`;
+      return `<tr class="comp-row-main" onclick="toggleCompDetail('${rid}')">
+        <td class="uf-col"><span class="comp-toggle-icon" id="${rid}-icon">▶</span>${r.uf}</td>
         <td>${r.nome}</td>
         <td>${mkSindCell(r.lab)}</td>
         <td>${mkSindCell(r.pat)}</td>
@@ -1056,7 +1059,8 @@ function renderCCTs(){
         <td style="white-space:nowrap">${r.dataBase||'—'}</td>
         <td><span class="badge ${STATUS_BADGE[r.status]}" style="font-size:9px">${STATUS_LABEL[r.status]}</span></td>
         <td style="white-space:nowrap">${cctHtml}</td>
-      </tr>`;
+      </tr>
+      <tr class="comp-detail-row closed" id="${rid}-row"><td colspan="9">${detailBody}</td></tr>`;
     }).join('');
     wrap.innerHTML=`<div class="cct-table-wrap">${header}${body}</tbody></table></div>`;
     return;
@@ -1092,9 +1096,9 @@ function renderCCTs(){
             const vigH=c.vig_ini&&c.vig_fim?`<span style="font-size:10px;color:var(--text-3)">${c.vig_ini} → ${c.vig_fim}</span>`:'';
             const assinadaH=c.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:'';
             const publicadaH=c.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:'';
-            const linkCCT=c.link_cct||c.link_drv||'';
             const linksH=[
-              linkCCT?`<a href="${linkCCT}" target="_blank" class="lbtn" style="font-size:10px">CCT ↗</a>`:'',
+              c.link_cct?`<a href="${c.link_cct}" target="_blank" class="lbtn" style="font-size:10px">Mediador ↗</a>`:'',
+              c.link_drv?`<a href="${c.link_drv}" target="_blank" class="lbtn" style="font-size:10px">Drive ↗</a>`:'',
               c.link_adi?`<a href="${c.link_adi}" target="_blank" class="lbtn" style="font-size:10px">Aditivo ↗</a>`:'',
             ].filter(Boolean).join('');
             extraH=`${assinadaH}${publicadaH}${pctH}${dbH}${vigH}${linksH}`;
@@ -1137,9 +1141,9 @@ function renderCCTs(){
           const vigH=c.vig_ini&&c.vig_fim?`<span style="font-size:10px;color:var(--text-3)">${c.vig_ini} → ${c.vig_fim}</span>`:'';
           const assinadaH=c.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:'';
           const publicadaH=c.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:'';
-          const linkCCT=c.link_cct||c.link_drv||'';
           const linksH=[
-            linkCCT?`<a href="${linkCCT}" target="_blank" class="lbtn" style="font-size:10px">CCT ↗</a>`:'',
+            c.link_cct?`<a href="${c.link_cct}" target="_blank" class="lbtn" style="font-size:10px">Mediador ↗</a>`:'',
+            c.link_drv?`<a href="${c.link_drv}" target="_blank" class="lbtn" style="font-size:10px">Drive ↗</a>`:'',
             c.link_adi?`<a href="${c.link_adi}" target="_blank" class="lbtn" style="font-size:10px">Aditivo ↗</a>`:'',
           ].filter(Boolean).join('');
           const pisosHtml=gerarPisosHtml(c,true);
@@ -1725,9 +1729,9 @@ function renderMapa(){
             const vigH=cct.vig_ini&&cct.vig_fim?`<span style="font-size:10px;color:var(--text-3)">${cct.vig_ini} → ${cct.vig_fim}</span>`:'';
             const assinadaH=cct.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:'';
             const publicadaH=cct.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:'';
-            const linkCCT=cct.link_cct||cct.link_drv||'';
             const linksH=[
-              linkCCT?`<a href="${linkCCT}" target="_blank" class="lbtn" style="font-size:10px">CCT ↗</a>`:'',
+              cct.link_cct?`<a href="${cct.link_cct}" target="_blank" class="lbtn" style="font-size:10px">Mediador ↗</a>`:'',
+              cct.link_drv?`<a href="${cct.link_drv}" target="_blank" class="lbtn" style="font-size:10px">Drive ↗</a>`:'',
               cct.link_adi?`<a href="${cct.link_adi}" target="_blank" class="lbtn" style="font-size:10px">Aditivo ↗</a>`:'',
             ].filter(Boolean).join('');
             extraH=`${assinadaH}${publicadaH}${pctH}${dbH}${vigH}${linksH}`;
@@ -1766,9 +1770,9 @@ function renderMapa(){
           const vigH=cct.vig_ini&&cct.vig_fim?`<span style="font-size:10px;color:var(--text-3)">${cct.vig_ini} → ${cct.vig_fim}</span>`:'';
           const assinadaH=cct.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:'';
           const publicadaH=cct.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:'';
-          const linkCCT=cct.link_cct||cct.link_drv||'';
           const linksH=[
-            linkCCT?`<a href="${linkCCT}" target="_blank" class="lbtn" style="font-size:10px">CCT ↗</a>`:'',
+            cct.link_cct?`<a href="${cct.link_cct}" target="_blank" class="lbtn" style="font-size:10px">Mediador ↗</a>`:'',
+            cct.link_drv?`<a href="${cct.link_drv}" target="_blank" class="lbtn" style="font-size:10px">Drive ↗</a>`:'',
             cct.link_adi?`<a href="${cct.link_adi}" target="_blank" class="lbtn" style="font-size:10px">Aditivo ↗</a>`:'',
           ].filter(Boolean).join('');
           return`<div class="mapa-cct">
