@@ -120,6 +120,17 @@ input[type=text]{width:155px}
 .panel-divider{border:none;border-top:0.5px solid var(--border)}
 /* CCTs */
 .cct-wrap{padding:0 20px 28px}
+.cct-table{width:100%;border-collapse:collapse;font-size:12px}
+.cct-table th{background:var(--bg);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-2);padding:7px 10px;text-align:left;border-bottom:0.5px solid var(--border-md);white-space:nowrap}
+.cct-table td{padding:7px 10px;border-bottom:0.5px solid var(--border);vertical-align:top}
+.cct-table tr:last-child td{border-bottom:none}
+.cct-table tr:hover td{background:var(--brand-light)}
+.cct-table .uf-col{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--brand);white-space:nowrap}
+.cct-table .cnpj{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-3);display:block;margin-top:1px}
+.cct-table-wrap{background:var(--surface);border:0.5px solid var(--border-md);border-radius:var(--rl);box-shadow:var(--shadow);overflow-x:auto}
+.view-toggle{display:flex;gap:4px}
+.view-toggle button{font-family:inherit;font-size:11px;font-weight:600;padding:5px 10px;border-radius:5px;border:0.5px solid var(--border-md);background:var(--surface);color:var(--text-2);cursor:pointer}
+.view-toggle button.active{background:var(--brand);color:#fff;border-color:var(--brand)}
 .cct-block{margin-bottom:10px;border:0.5px solid var(--border-md);border-radius:var(--rl);background:var(--surface);box-shadow:var(--shadow);overflow:hidden}
 .cct-head{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:12px;transition:background .12s}
 .cct-head:hover{background:var(--bg)}
@@ -403,6 +414,10 @@ input[type=text]{width:155px}
           <option value="2023">2023</option>
         </select>
         <input type="text" id="cct-search" placeholder="Buscar estado..." oninput="renderCCTs()" style="width:140px">
+        <div class="view-toggle">
+          <button id="cct-view-btn-blocos" class="active" onclick="setCCTView('blocos')">Blocos</button>
+          <button id="cct-view-btn-lista" onclick="setCCTView('lista')">Lista</button>
+        </div>
       </div>
     </div>
     <div class="cct-wrap" id="cct-wrap"><div class="loading-txt" style="padding:2rem">Carregando CCTs...</div></div>
@@ -530,6 +545,7 @@ let currentNav  = 'mapa';
 let currentReg  = 'all';
 let calYear     = 2026;
 let calMonth    = new Date().getMonth();
+let cctViewMode = 'blocos';
 
 // ── Cache de dados ──
 let DATA = {
@@ -914,6 +930,60 @@ const PISOS_DEF=[
   {sec:"Contribuições sindicais",items:[{k:"cont_assist",l:"Contribuição Assistencial"},{k:"cont_patronal",l:"Contribuição Patronal"},{k:"cont_laboral",l:"Contribuição Laboral"}]},
 ];
 
+window.setCCTView=function(mode){
+  cctViewMode=mode;
+  document.getElementById('cct-view-btn-blocos').classList.toggle('active',mode==='blocos');
+  document.getElementById('cct-view-btn-lista').classList.toggle('active',mode==='lista');
+  renderCCTs();
+};
+
+// Mesma lógica de casamento CCT×negociação usada nos cards (grupos_sindicais
+// como fonte primária, com fallbacks) — aqui devolvendo dados em vez de HTML,
+// pra alimentar a visualização em lista.
+function getEstadoCCTRows(e,anoRef){
+  const ccts=DATA.ccts.filter(c=>c.ano===anoRef&&c.uf===e.uf);
+  const negs=DATA.negociacoes.filter(n=>n.ano===anoRef&&n.uf===e.uf);
+  const gruposE=DATA.grupos.filter(g=>g.uf===e.uf);
+  const rows=[];
+  if(gruposE.length){
+    gruposE.forEach(gs=>{
+      const lab=getSind(gs.sind_lab_id);
+      const pat=getSind(gs.sind_pat_id);
+      const c=ccts.find(p=>p.grupo_sindical_id===gs.id)
+        ||ccts.find(p=>p.abrangencia===gs.abrangencia&&p.tipo===gs.tipo&&(p.grupo||'principal')===(gs.grupo||'principal'));
+      const neg=negs.find(n=>n.grupo_sindical_id===gs.id)
+        ||negs.find(n=>n.funcao===gs.abrangencia&&n.tipo===gs.tipo&&(n.grupo||'principal')===(gs.grupo||'principal'))
+        ||{};
+      rows.push({uf:e.uf,nome:e.nome,lab,pat,abrangencia:gs.abrangencia,tipo:gs.tipo,
+        status:neg.status||'aguardando',pct:neg.percentual||c?.pct,
+        assinada:c?.assinada,publicada_mediador:c?.publicada_mediador,temCCT:!!c});
+    });
+  } else if(ccts.length){
+    ccts.forEach(c=>{
+      const lab=c.sind_lab_id?getSind(c.sind_lab_id):null;
+      const pat=c.sind_pat_id?getSind(c.sind_pat_id):null;
+      const cGrupo=c.grupo||'principal';
+      const neg=(c.grupo_sindical_id&&negs.find(n=>n.grupo_sindical_id===c.grupo_sindical_id))
+        ||negs.find(n=>n.funcao===(c.abrangencia||'todas')&&(n.tipo||'Estado')===(c.tipo||'Estado')&&(n.grupo||'principal')===cGrupo)
+        ||negs.find(n=>n.funcao===(c.abrangencia||'todas')&&(n.tipo||'Estado')===(c.tipo||'Estado'))
+        ||negs.find(n=>n.funcao===(c.abrangencia||'todas'))||{};
+      rows.push({uf:e.uf,nome:e.nome,lab,pat,abrangencia:c.abrangencia,tipo:c.tipo,
+        status:neg.status||'aguardando',pct:neg.percentual||c.pct,
+        assinada:c.assinada,publicada_mediador:c.publicada_mediador,temCCT:true});
+    });
+  } else {
+    const basePairs=SINDICATOS_BASE.filter(p=>p.uf===e.uf);
+    basePairs.forEach(pair=>{
+      const labDB=DATA.sindicatos.find(s=>s.uf===e.uf&&s.tipo==='laboral'&&(s.cnpj===pair.lab?.cnpj||s.sigla===pair.lab?.sigla));
+      const patDB=DATA.sindicatos.find(s=>s.uf===e.uf&&s.tipo==='patronal'&&(s.cnpj===pair.pat?.cnpj||s.sigla===pair.pat?.sigla));
+      rows.push({uf:e.uf,nome:e.nome,lab:labDB||pair.lab,pat:patDB||pair.pat,abrangencia:pair.abrang,tipo:pair.cob,
+        status:negs.length?(negs[0].status||'aguardando'):'aguardando',pct:null,
+        assinada:false,publicada_mediador:false,temCCT:false});
+    });
+  }
+  return rows;
+}
+
 function renderCCTs(){
   const regF  =(document.getElementById('cct-reg')  ||{}).value||'';
   const srch  =(document.getElementById('cct-search')||{}).value.toLowerCase();
@@ -956,6 +1026,39 @@ function renderCCTs(){
   }).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
 
   if(!statesCCT.length){wrap.innerHTML='<div class="empty">Nenhum estado encontrado.</div>';return;}
+
+  if(cctViewMode==='lista'){
+    const allRows=statesCCT.flatMap(e=>getEstadoCCTRows(e,anoRef));
+    const mkSindCell=(s)=>s?`${s.sigla||s.nome}${s.cnpj?`<span class="cnpj">${s.cnpj}</span>`:''}`:'<span style="color:var(--text-3)">—</span>';
+    const header=`<table class="cct-table"><thead><tr>
+      <th>UF</th><th>Estado</th>
+      <th>Laboral (sigla / CNPJ)</th><th>Patronal (sigla / CNPJ)</th>
+      <th>Função</th><th>Tipo</th><th>Status</th><th>CCT</th>
+    </tr></thead><tbody>`;
+    const body=allRows.map(r=>{
+      const funcao=ABRANG_LBL[r.abrangencia||'todas']||r.abrangencia||'—';
+      let cctHtml='';
+      if(r.temCCT){
+        if(r.publicada_mediador)cctHtml+=`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span> `;
+        if(r.assinada)cctHtml+=`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span> `;
+        if(r.pct)cctHtml+=`<span class="pct-chip">${r.pct}%</span>`;
+      } else {
+        cctHtml=`<span class="badge b-gray" style="font-size:9px">Sem CCT em ${anoRef}</span>`;
+      }
+      return `<tr>
+        <td class="uf-col">${r.uf}</td>
+        <td>${r.nome}</td>
+        <td>${mkSindCell(r.lab)}</td>
+        <td>${mkSindCell(r.pat)}</td>
+        <td>${funcao}</td>
+        <td>${r.tipo||'Estado'}</td>
+        <td><span class="badge ${STATUS_BADGE[r.status]}" style="font-size:9px">${STATUS_LABEL[r.status]}</span></td>
+        <td style="white-space:nowrap">${cctHtml}</td>
+      </tr>`;
+    }).join('');
+    wrap.innerHTML=`<div class="cct-table-wrap">${header}${body}</tbody></table></div>`;
+    return;
+  }
 
   const cardsCCT=statesCCT.map(e=>{
       const ccts=DATA.ccts.filter(c=>c.ano===anoRef&&c.uf===e.uf);
