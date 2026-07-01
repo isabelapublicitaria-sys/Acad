@@ -451,6 +451,10 @@ label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercas
             <label>Identificador do grupo <span style="font-size:10px;color:var(--text-3);font-weight:400">(quando há mais de 1 par por estado)</span></label>
             <input type="text" id="gr-grupo" value="principal" placeholder="principal">
           </div>
+          <div class="field">
+            <label>Data Base <span style="font-size:10px;color:var(--text-3);font-weight:400">(recorrente, todo ano)</span></label>
+            <input type="text" id="gr-data-base" placeholder="1º de maio">
+          </div>
           <div class="field" style="align-self:end">
             <button class="btn btn-primary" style="width:100%" onclick="saveGrupo()" id="gr-save-btn">Adicionar par</button>
           </div>
@@ -1385,7 +1389,7 @@ window.renderGrupos=async function(){
             <span style="color:var(--text-3);font-weight:700">×</span>
             <span class="badge b-warn" style="font-size:9px">Patronal</span>${patTxt}
           </div>
-          <div class="rec-sub">${abrangLabel} · ${gs.tipo||'Estado'}${grupoLabel}</div>
+          <div class="rec-sub">${abrangLabel} · ${gs.tipo||'Estado'}${grupoLabel}${gs.data_base?` · Data base: <strong>${gs.data_base}</strong>`:''}</div>
           <div class="rec-hint">Clique para editar sindicatos do par</div>
         </div>
         <button class="btn btn-danger btn-sm" style="flex-shrink:0" onclick="delGrupo(${gs.id})">Excluir</button>
@@ -1423,6 +1427,7 @@ window.editGrupo=function(id){
   document.getElementById('gr-abrang').value=r.abrangencia||'todas';
   document.getElementById('gr-tipo').value=r.tipo||'Estado';
   document.getElementById('gr-grupo').value=r.grupo||'principal';
+  document.getElementById('gr-data-base').value=r.data_base||'';
   // Abrangência/tipo/grupo são chave — não mudam em modo edição
   document.getElementById('gr-abrang').disabled=true;
   document.getElementById('gr-tipo').disabled=true;
@@ -1442,6 +1447,7 @@ window.cancelEditGrupo=function(){
   document.getElementById('gr-abrang').value='todas';  document.getElementById('gr-abrang').disabled=false;
   document.getElementById('gr-tipo').value='Estado';   document.getElementById('gr-tipo').disabled=false;
   document.getElementById('gr-grupo').value='principal';document.getElementById('gr-grupo').disabled=false;
+  document.getElementById('gr-data-base').value='';
   renderGrupos();
 };
 
@@ -1453,9 +1459,10 @@ window.saveGrupo=async function(){
   const pat=getVal('gr-pat');
   if(!lab&&!pat){toast('Selecione ao menos um sindicato.','err');return;}
   const sindLabId=lab?parseInt(lab):null,sindPatId=pat?parseInt(pat):null;
+  const dataBase=getVal('gr-data-base')||null;
   if(currentEditId.grupo){
-    // Modo edição: só atualiza os sindicatos no grupos_sindicais (chave não muda)
-    const {error}=await sb.from('grupos_sindicais').update({sind_lab_id:sindLabId,sind_pat_id:sindPatId}).eq('id',currentEditId.grupo);
+    // Modo edição: atualiza os sindicatos e a data base no grupos_sindicais (chave não muda)
+    const {error}=await sb.from('grupos_sindicais').update({sind_lab_id:sindLabId,sind_pat_id:sindPatId,data_base:dataBase}).eq('id',currentEditId.grupo);
     if(error){toast('Erro: '+error.message,'err');return;}
     // Sincroniza pisos existentes do ano
     await sb.from('pisos').update({sind_lab_id:sindLabId,sind_pat_id:sindPatId}).eq('grupo_sindical_id',currentEditId.grupo).eq('ano',ano);
@@ -1467,6 +1474,7 @@ window.saveGrupo=async function(){
   const abrangencia=getVal('gr-abrang')||'todas',tipo=getVal('gr-tipo')||'Estado',grupo=getVal('gr-grupo')||'principal';
   const grupoSindicalId=await getOrCreateGrupoSindical({uf,abrangencia,tipo,grupo,sind_lab_id:sindLabId,sind_pat_id:sindPatId});
   if(!grupoSindicalId){toast('Erro ao salvar o par sindical.','err');return;}
+  if(dataBase)await sb.from('grupos_sindicais').update({data_base:dataBase}).eq('id',grupoSindicalId);
   await ensureNegociacaoParaGrupo({ano,uf,abrangencia,tipo,grupo,grupoSindicalId});
   toast('Par adicionado! Agora você pode definir o status e adicionar a CCT.');
   cancelEditGrupo();
@@ -1716,7 +1724,7 @@ window.renderAdmMapa=async function(){
             ||{};
           const st_=neg.status||'aguardando';
           cctStatuses.push(st_);
-          const pct=neg.percentual||cct.pct;
+          const pct=cct.pct||neg.percentual;
           const abrangH=cct.abrangencia==='ef'?`<span class="badge b-teal">Educ. Física</span>`
             :cct.abrangencia==='adm'?`<span class="badge b-orange">Administrativo</span>`
             :`<span class="badge b-purple">Todas as funções</span>`;
