@@ -918,7 +918,7 @@ window.openAssembleia=function(id){
       ${sec('Endereço',a.endereco)}
       ${secLink('Link da reunião',a.link_meet,'Abrir reunião')}
       ${(a.link_edital||a.link_pauta||a.link_ata)?`<div class="panel-section"><div class="panel-lbl">Documentos</div><div style="display:flex;gap:6px">${a.link_edital?`<a href="${a.link_edital}" target="_blank" class="lbtn">Edital ↗</a>`:''}${a.link_pauta?`<a href="${a.link_pauta}" target="_blank" class="lbtn">Pauta ↗</a>`:''}${a.link_ata?`<a href="${a.link_ata}" target="_blank" class="lbtn">Ata ↗</a>`:''}</div></div>`:''}
-      ${a.neg_pct?`<div class="panel-section"><div class="panel-lbl">Percentual discutido</div><div class="panel-val"><span class="pct-chip">${a.neg_pct}</span></div></div>`:''}
+      ${a.neg_pct?`<div class="panel-section"><div class="panel-lbl">Percentual discutido</div><div class="panel-val"><span class="pct-chip">${a.neg_pct}%</span></div></div>`:''}
       <hr class="panel-divider">
       ${sec('Resumo / relato',a.resumo)}
       ${sec('Observações diversas',a.obs)}
@@ -1208,6 +1208,15 @@ function renderCCTs(){
   wrap.innerHTML=`<div class="mapa-grid">${cardsCCT}</div>`;
 }
 
+// Padroniza exibição de valores monetários (adiciona "R$" quando falta).
+// Percentuais e texto livre (contém "%" ou não começa com número) ficam como estão.
+function fmtMoney(v){
+  if(!v) return v;
+  const t=String(v).trim();
+  if(!t||t.includes('%')||/^r\$/i.test(t)) return v;
+  return /^-?\d/.test(t) ? `R$ ${t}` : v;
+}
+
 function gerarPisosHtml(c, soPreenchidos=false){
   let html='';
   PISOS_DEF.forEach(sec=>{
@@ -1218,7 +1227,7 @@ function gerarPisosHtml(c, soPreenchidos=false){
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:4px">
         ${items.map(it=>`<div style="background:var(--bg);border:0.5px solid var(--border);border-radius:4px;padding:4px 7px">
           <div style="font-size:9px;color:var(--text-3);margin-bottom:1px">${it.l}</div>
-          <div style="font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace;color:${c[it.k]?'inherit':'var(--text-3)'}">${c[it.k]||'—'}</div>
+          <div style="font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace;color:${c[it.k]?'inherit':'var(--text-3)'}">${fmtMoney(c[it.k])||'—'}</div>
         </div>`).join('')}
       </div>
     </div>`;
@@ -1339,7 +1348,7 @@ function renderComp(){
           ${years.filter(y=>l.porAno[y].cct).map(y=>`
             <tr>
               <td style="padding:5px 8px;font-weight:600;font-size:11px;color:var(--text-2);font-family:'JetBrains Mono',monospace;border-bottom:0.5px solid var(--border)">${y}</td>
-              ${colsVisiveis.map(p=>`<td style="padding:5px 8px;font-size:11px;font-family:'JetBrains Mono',monospace;border-bottom:0.5px solid var(--border);white-space:nowrap">${l.porAno[y].cct?.[p.k]||'—'}</td>`).join('')}
+              ${colsVisiveis.map(p=>`<td style="padding:5px 8px;font-size:11px;font-family:'JetBrains Mono',monospace;border-bottom:0.5px solid var(--border);white-space:nowrap">${fmtMoney(l.porAno[y].cct?.[p.k])||'—'}</td>`).join('')}
             </tr>`).join('')}
         </tbody>
       </table>`:`<div style="padding:10px 14px;font-size:11px;color:var(--text-3);font-style:italic">Sem dados de piso salarial cadastrados.</div>`;

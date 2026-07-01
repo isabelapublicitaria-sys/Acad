@@ -1616,7 +1616,7 @@ window.loadAssembleiasNeg = async function(){
           <span class="neg-assemb-modal ${modalClass[modal]}">${modalLabel[modal]}</span>
           ${a.hora ? `<span style="font-size:11px;color:var(--text-2)">${a.hora}</span>` : ''}
         </div>
-        <div class="neg-assemb-sub">${a.sindicato_nome||''} ${a.neg_pct?'· '+a.neg_pct:''}</div>
+        <div class="neg-assemb-sub">${a.sindicato_nome||''} ${a.neg_pct?'· '+a.neg_pct+'%':''}</div>
         ${a.resumo ? `<div class="neg-assemb-sub">${a.resumo.substring(0,120)}${a.resumo.length>120?'…':''}</div>` : ''}
         ${ataLink||pautaLink ? `<div class="neg-assemb-links">${ataLink}${pautaLink}</div>` : ''}
       </div>
