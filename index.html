@@ -1036,7 +1036,7 @@ function renderCCTs(){
     const header=`<table class="cct-table"><thead><tr>
       <th>UF</th><th>Estado</th>
       <th>Laboral (sigla / CNPJ)</th><th>Patronal (sigla / CNPJ)</th>
-      <th>Função</th><th>Tipo</th><th>Data Base</th><th>Status</th><th>CCT</th>
+      <th>Função</th><th>Tipo</th><th>Data Base</th><th>Mês Acordo</th><th>Status</th><th>CCT</th>
     </tr></thead><tbody>`;
     const body=allRows.map((r,idx)=>{
       const funcao=ABRANG_LBL[r.abrangencia||'todas']||r.abrangencia||'—';
@@ -1057,10 +1057,11 @@ function renderCCTs(){
         <td>${funcao}</td>
         <td>${r.tipo||'Estado'}</td>
         <td style="white-space:nowrap">${r.dataBase||'—'}</td>
+        <td style="white-space:nowrap">${r.cct?.mes_acordo?MESES[r.cct.mes_acordo-1]:'—'}</td>
         <td><span class="badge ${STATUS_BADGE[r.status]}" style="font-size:9px">${STATUS_LABEL[r.status]}</span></td>
         <td style="white-space:nowrap">${cctHtml}</td>
       </tr>
-      <tr class="comp-detail-row closed" id="${rid}-row"><td colspan="9">${detailBody}</td></tr>`;
+      <tr class="comp-detail-row closed" id="${rid}-row"><td colspan="10">${detailBody}</td></tr>`;
     }).join('');
     wrap.innerHTML=`<div class="cct-table-wrap">${header}${body}</tbody></table></div>`;
     return;
@@ -1093,6 +1094,7 @@ function renderCCTs(){
           let pisosHtml='';
           if(c){
             const dbH=c.data_base?`<span style="font-size:10px;color:var(--text-3)">Data base: <strong style="color:var(--text)">${c.data_base}</strong></span>`:'';
+            const mesAcordoH=c.mes_acordo?`<span style="font-size:10px;color:var(--text-3)">Acordo: <strong style="color:var(--text)">${MESES[c.mes_acordo-1]}</strong></span>`:'';
             const vigH=c.vig_ini&&c.vig_fim?`<span style="font-size:10px;color:var(--text-3)">${c.vig_ini} → ${c.vig_fim}</span>`:'';
             const assinadaH=c.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:'';
             const publicadaH=c.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:'';
@@ -1101,7 +1103,7 @@ function renderCCTs(){
               c.link_drv?`<a href="${c.link_drv}" target="_blank" class="lbtn" style="font-size:10px">Drive ↗</a>`:'',
               c.link_adi?`<a href="${c.link_adi}" target="_blank" class="lbtn" style="font-size:10px">Aditivo ↗</a>`:'',
             ].filter(Boolean).join('');
-            extraH=`${assinadaH}${publicadaH}${pctH}${dbH}${vigH}${linksH}`;
+            extraH=`${assinadaH}${publicadaH}${pctH}${dbH}${mesAcordoH}${vigH}${linksH}`;
             pisosHtml=gerarPisosHtml(c,true);
           } else {
             const dbH=gs.data_base?`<span style="font-size:10px;color:var(--text-3)">Data base: <strong style="color:var(--text)">${gs.data_base}</strong></span>`:'';
@@ -1138,6 +1140,7 @@ function renderCCTs(){
           const tipoH=c.tipo&&c.tipo!=='Estado'?`<span class="badge b-gray" style="font-size:9px">${c.tipo}</span>`:'';
           const pctH=pct?`<span class="pct-chip">${pct}%</span>`:'';
           const dbH=c.data_base?`<span style="font-size:10px;color:var(--text-3)">Data base: <strong style="color:var(--text)">${c.data_base}</strong></span>`:'';
+          const mesAcordoH=c.mes_acordo?`<span style="font-size:10px;color:var(--text-3)">Acordo: <strong style="color:var(--text)">${MESES[c.mes_acordo-1]}</strong></span>`:'';
           const vigH=c.vig_ini&&c.vig_fim?`<span style="font-size:10px;color:var(--text-3)">${c.vig_ini} → ${c.vig_fim}</span>`:'';
           const assinadaH=c.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:'';
           const publicadaH=c.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:'';
@@ -1152,7 +1155,7 @@ function renderCCTs(){
             <div class="mapa-cct-meta">
               ${abrangH}${tipoH}
               <span class="badge ${STATUS_BADGE[st_]}">${STATUS_LABEL[st_]}</span>
-              ${assinadaH}${publicadaH}${pctH}${dbH}${vigH}${linksH}
+              ${assinadaH}${publicadaH}${pctH}${dbH}${mesAcordoH}${vigH}${linksH}
             </div>
             <div class="mapa-cct-sinds">${mkSind(lab,'lab')}${mkSind(pat,'pat')}</div>
             ${pisosHtml?`<div class="mapa-assemb-toggle" id="ptog-${pid}" onclick="togglePisos('${pid}')">
@@ -1726,6 +1729,7 @@ function renderMapa(){
           let extraH='';
           if(cct){
             const dbH=cct.data_base?`<span style="font-size:10px;color:var(--text-3)">Data base: <strong style="color:var(--text)">${cct.data_base}</strong></span>`:'';
+            const mesAcordoH=cct.mes_acordo?`<span style="font-size:10px;color:var(--text-3)">Acordo: <strong style="color:var(--text)">${MESES[cct.mes_acordo-1]}</strong></span>`:'';
             const vigH=cct.vig_ini&&cct.vig_fim?`<span style="font-size:10px;color:var(--text-3)">${cct.vig_ini} → ${cct.vig_fim}</span>`:'';
             const assinadaH=cct.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:'';
             const publicadaH=cct.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:'';
@@ -1734,7 +1738,7 @@ function renderMapa(){
               cct.link_drv?`<a href="${cct.link_drv}" target="_blank" class="lbtn" style="font-size:10px">Drive ↗</a>`:'',
               cct.link_adi?`<a href="${cct.link_adi}" target="_blank" class="lbtn" style="font-size:10px">Aditivo ↗</a>`:'',
             ].filter(Boolean).join('');
-            extraH=`${assinadaH}${publicadaH}${pctH}${dbH}${vigH}${linksH}`;
+            extraH=`${assinadaH}${publicadaH}${pctH}${dbH}${mesAcordoH}${vigH}${linksH}`;
           } else {
             const dbH=gs.data_base?`<span style="font-size:10px;color:var(--text-3)">Data base: <strong style="color:var(--text)">${gs.data_base}</strong></span>`:'';
             extraH=`${pctH}${dbH}`;
@@ -1767,6 +1771,7 @@ function renderMapa(){
           const tipoH=cct.tipo?`<span class="badge b-gray" style="font-size:9px">${cct.tipo}</span>`:'';
           const pctH=pct?`<span class="pct-chip">${pct}%</span>`:'';
           const dbH=cct.data_base?`<span style="font-size:10px;color:var(--text-3)">Data base: <strong style="color:var(--text)">${cct.data_base}</strong></span>`:'';
+          const mesAcordoH=cct.mes_acordo?`<span style="font-size:10px;color:var(--text-3)">Acordo: <strong style="color:var(--text)">${MESES[cct.mes_acordo-1]}</strong></span>`:'';
           const vigH=cct.vig_ini&&cct.vig_fim?`<span style="font-size:10px;color:var(--text-3)">${cct.vig_ini} → ${cct.vig_fim}</span>`:'';
           const assinadaH=cct.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:'';
           const publicadaH=cct.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:'';
@@ -1779,7 +1784,7 @@ function renderMapa(){
             <div class="mapa-cct-meta">
               ${abrangH}${tipoH}
               <span class="badge ${STATUS_BADGE[st_]}">${STATUS_LABEL[st_]}</span>
-              ${assinadaH}${publicadaH}${pctH}${dbH}${vigH}${linksH}
+              ${assinadaH}${publicadaH}${pctH}${dbH}${mesAcordoH}${vigH}${linksH}
             </div>
             <div class="mapa-cct-sinds">${mkSind(lab,'lab')}${mkSind(pat,'pat')}</div>
           </div>`;

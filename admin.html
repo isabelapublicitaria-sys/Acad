@@ -300,6 +300,13 @@ label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercas
     <div class="sf-bar">
       <select class="sf-sel" id="ca-ano" onchange="loadCCTList()"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option><option value="2023">2023</option></select>
       <select class="sf-sel" id="ca-uf" onchange="loadCCTForm()"><option value="">Selecione o estado...</option></select>
+      <select class="sf-sel" id="ca-mes-acordo" onchange="loadCCTList()">
+        <option value="">Mês do acordo: todos</option>
+        <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+        <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+        <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+        <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+      </select>
     </div>
     <div class="form-wrap" id="cct-form" style="display:none">
       <div class="fsection">
@@ -315,6 +322,15 @@ label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercas
           <div class="field"><label>Data base</label><input type="text" id="cf-database" placeholder="ex: 01/2026"></div>
           <div class="field"><label>Vigência inicial</label><input type="date" id="cf-vigini"></div>
           <div class="field"><label>Vigência final</label><input type="date" id="cf-vigfim"></div>
+          <div class="field"><label>Mês do acordo <span style="font-size:10px;color:var(--text-3);font-weight:400">(mês em que fechou, p/ relatório mensal)</span></label>
+            <select id="cf-mes-acordo">
+              <option value="">—</option>
+              <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+              <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+              <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+              <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+            </select>
+          </div>
           <div class="field"><label>Percentual de reajuste (%)</label><input type="text" id="cf-pct" placeholder="ex: 5,84"></div>
           <div class="field"><label>Link CCT (mediador/MTE)</label><input type="url" id="cf-link-cct"></div>
           <div class="field"><label>Link aditivos</label><input type="url" id="cf-link-adi"></div>
@@ -573,6 +589,7 @@ const ESTADOS = [
 const STATUS_LABEL = {negociacao:"Em negociação",aguardando:"Aguardando data base",sem_acordo:"Sem acordo",concluido:"Acordo finalizado",vigente:"CCT vigente (sem negociação)"};
 const STATUS_BADGE = {negociacao:"b-neg",aguardando:"b-warn",sem_acordo:"b-red",concluido:"b-ok",vigente:"b-teal"};
 const ABRANG = {todas:"Todas as funções",ef:"Educ. Física",adm:"Administrativo"};
+const MESES = [{v:1,l:"Janeiro"},{v:2,l:"Fevereiro"},{v:3,l:"Março"},{v:4,l:"Abril"},{v:5,l:"Maio"},{v:6,l:"Junho"},{v:7,l:"Julho"},{v:8,l:"Agosto"},{v:9,l:"Setembro"},{v:10,l:"Outubro"},{v:11,l:"Novembro"},{v:12,l:"Dezembro"}];
 
 const PISOS_DEF=[
   {sec:"Educação Física — Mensalistas",items:[{k:"ef_men",l:"Prof. EF mensalista"},{k:"ef_cmen",l:"Coord. EF mensalista"},{k:"ef_resp",l:"Resp. técnico (superior)"}]},
@@ -1153,14 +1170,15 @@ window.loadCCTList=async function(){
   el.innerHTML='<div class="empty" style="font-size:12px;color:var(--text-3)">Carregando...</div>';
   const {data,error}=await sb.from('pisos').select('*').eq('ano',ano).order('uf');
   if(error){el.innerHTML=`<div class="empty" style="color:var(--red)">Erro: ${error.message}</div>`;return;}
-  const rows=data||[];
-  if(!rows.length){el.innerHTML=`<div class="empty">Nenhuma CCT em ${ano}. Selecione um estado acima para cadastrar.</div>`;return;}
+  const mesFiltro=getVal('ca-mes-acordo');
+  const rows=(data||[]).filter(c=>!mesFiltro||String(c.mes_acordo||'')===mesFiltro);
+  if(!rows.length){el.innerHTML=`<div class="empty">Nenhuma CCT em ${ano}${mesFiltro?' com acordo em '+(MESES.find(m=>m.v==mesFiltro)?.l||''):''}.</div>`;return;}
 
   if(cctViewMode==='lista'){
     const header=`<table class="cct-table"><thead><tr>
       <th>UF</th><th>Estado</th>
       <th>Laboral (sigla / CNPJ)</th><th>Patronal (sigla / CNPJ)</th>
-      <th>Função</th><th>Tipo</th><th>Data Base</th><th>Status CCT</th>
+      <th>Função</th><th>Tipo</th><th>Data Base</th><th>Mês acordo</th><th>Status CCT</th>
     </tr></thead><tbody>`;
     const body=rows.map((c,idx)=>{
       const lab=sindicatos.find(s=>s.id===c.sind_lab_id);
@@ -1183,9 +1201,10 @@ window.loadCCTList=async function(){
         <td>${funcao}</td>
         <td>${c.tipo||'Estado'}</td>
         <td style="white-space:nowrap">${c.data_base||'—'}</td>
+        <td style="white-space:nowrap">${MESES.find(m=>m.v===c.mes_acordo)?.l||'—'}</td>
         <td style="white-space:nowrap">${statusHtml}</td>
       </tr>
-      <tr class="comp-detail-row closed" id="${rid}-row" onclick="event.stopPropagation()"><td colspan="8">${detailBody}</td></tr>`;
+      <tr class="comp-detail-row closed" id="${rid}-row" onclick="event.stopPropagation()"><td colspan="9">${detailBody}</td></tr>`;
     }).join('');
     el.innerHTML=`<div class="cct-table-wrap">${header}${body}</tbody></table></div>`;
   } else {
@@ -1200,7 +1219,7 @@ window.loadCCTList=async function(){
             ${c.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:''}
             ${c.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:''}
           </div>
-          <div class="rec-sub">${c.data_base?'Data base: '+c.data_base:''}</div>
+          <div class="rec-sub">${c.data_base?'Data base: '+c.data_base:''}${c.mes_acordo?(c.data_base?' · ':'')+'Acordo: '+(MESES.find(m=>m.v===c.mes_acordo)?.l||''):''}</div>
           <div class="rec-hint">Clique para editar</div>
         </div>
         <button class="btn btn-danger btn-sm" style="flex-shrink:0"
@@ -1249,6 +1268,7 @@ window.loadCCTForm=async function(idOverride){
     'cf-sind-lab':d.sind_lab_id||'','cf-sind-pat':d.sind_pat_id||'',
     'cf-abrang':d.abrangencia||'todas','cf-tipo':d.tipo||'Estado',
     'cf-database':d.data_base||'','cf-vigini':d.vig_ini||'','cf-vigfim':d.vig_fim||'',
+    'cf-mes-acordo':d.mes_acordo||'',
     'cf-pct':d.pct||'','cf-link-cct':d.link_cct||'','cf-link-adi':d.link_adi||'','cf-link-drv':d.link_drv||'',
     'cf-ef-men':d.ef_men||'','cf-ef-cmen':d.ef_cmen||'','cf-ef-resp':d.ef_resp||'',
     'cf-ef-hor':d.ef_hor||'','cf-ef-chor':d.ef_chor||'','cf-ef-col':d.ef_col||'',
@@ -1281,6 +1301,7 @@ window.saveCCT=async function(){
     sind_lab_id:sindLabId,sind_pat_id:sindPatId,
     abrangencia,tipo,grupo,grupo_sindical_id:grupoSindicalId,
     data_base:g('cf-database'),vig_ini:g('cf-vigini'),vig_fim:g('cf-vigfim'),
+    mes_acordo:g('cf-mes-acordo')?parseInt(g('cf-mes-acordo')):null,
     pct:g('cf-pct'),link_cct:g('cf-link-cct'),link_adi:g('cf-link-adi'),link_drv:g('cf-link-drv'),
     ef_men:g('cf-ef-men'),ef_cmen:g('cf-ef-cmen'),ef_resp:g('cf-ef-resp'),
     ef_hor:g('cf-ef-hor'),ef_chor:g('cf-ef-chor'),ef_col:g('cf-ef-col'),
@@ -1784,6 +1805,7 @@ window.renderAdmMapa=async function(){
           const grupoH=cctGrupo!=='principal'?`<span class="badge b-gray" style="font-size:9px">${cctGrupo}</span>`:'';
           const pctH=pct?`<span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--brand)">${pct}%</span>`:'';
           const dbH=cct.data_base?`<span style="font-size:10px;color:var(--text-3)">Base: <strong style="color:var(--text)">${cct.data_base}</strong></span>`:'';
+          const mesAcordoH=cct.mes_acordo?`<span style="font-size:10px;color:var(--text-3)">Acordo: <strong style="color:var(--text)">${MESES.find(m=>m.v===cct.mes_acordo)?.l||''}</strong></span>`:'';
           const assinadaH=cct.assinada?`<span class="badge b-ok" style="font-size:9px">✓ Assinada</span>`:'';
           const publicadaH=cct.publicada_mediador?`<span class="badge b-ok" style="font-size:9px">✓ Mediador</span>`:'';
           const linksH=[
@@ -1796,7 +1818,7 @@ window.renderAdmMapa=async function(){
               ${abrangH}${tipoH}${grupoH}
               <span class="badge ${ST_BADGE_ADM[st_]}">${ST_LABEL_ADM[st_]}</span>
               ${assinadaH}${publicadaH}
-              ${pctH}${dbH}${linksH}
+              ${pctH}${dbH}${mesAcordoH}${linksH}
               <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;margin-left:auto" onclick="goAdmNegPar('${e.uf}',${cct.grupo_sindical_id||'null'})">Editar status →</button>
               <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px" onclick="goAdmCCTs('${e.uf}')">Editar CCT →</button>
             </div>
