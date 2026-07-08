@@ -84,6 +84,14 @@ build/bundler**: dois arquivos HTML com JS inline em `<script type="module">`.
 - No Mapa (admin e público), cada card de estado mostra um selo resumo
   "X/Y resolvidas" quando há mais de 1 par, contando `concluido`+`vigente`
   como resolvido.
+- No site público (`index.html`, Mapa e Lista de CCTs), cada bloco de par
+  (`.mapa-cct`) tem `data-st="<status>"` com uma faixa lateral colorida por
+  status (verde=`concluido`/`vigente`, azul=`negociacao`, cinza=`aguardando`,
+  vermelho=`sem_acordo`), pra dar pra ver de relance quem já fechou CCT sem
+  ler os badges. Adicionado em 2026-07-08 a pedido da usuária (ficava confuso
+  bater o olho em estados com vários pares). Se adicionar um novo bloco
+  `.mapa-cct` no HTML gerado, incluir o `data-st` — senão ele fica sem faixa
+  (cai no estilo padrão, sem cor).
 
 ## Gotcha: tabela `config`
 
