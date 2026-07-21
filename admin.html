@@ -58,6 +58,8 @@ textarea{resize:vertical;min-height:65px}
 .login-brand{font-size:17px;font-weight:700;color:var(--brand)}
 .login-sub{font-size:13px;color:var(--text-2)}
 .login-err{font-size:12px;color:var(--red);background:var(--red-bg);padding:8px 12px;border-radius:6px;display:none}
+.login-ok{font-size:12px;color:var(--green-tx);background:var(--green-bg);padding:8px 12px;border-radius:6px;display:none}
+.login-link{font-size:12px;color:var(--brand);cursor:pointer;background:none;border:none;font-family:inherit;padding:0;text-align:left}
 /* FORMS */
 .form-wrap{padding:18px 20px;max-width:900px}
 .fsection{background:var(--surface);border:0.5px solid var(--border-md);border-radius:var(--rl);margin-bottom:14px;overflow:hidden;box-shadow:var(--shadow)}
@@ -163,6 +165,30 @@ label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercas
     <div class="field"><label>Senha</label><input type="password" id="l-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <div class="login-err" id="l-err">E-mail ou senha incorretos.</div>
     <button class="btn btn-primary" id="l-btn" onclick="doLogin()">Entrar</button>
+    <button class="login-link" onclick="showForgot()">Esqueci minha senha</button>
+  </div>
+</div>
+
+<!-- ESQUECI A SENHA -->
+<div id="forgot-screen" class="login-wrap hidden">
+  <div class="login-card">
+    <div><div class="login-brand">Monitor Sindical ACAD</div><div class="login-sub">Redefinir senha</div></div>
+    <div class="field"><label>E-mail</label><input type="email" id="f-email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter')doForgotPassword()"></div>
+    <div class="login-err" id="f-err"></div>
+    <div class="login-ok" id="f-ok"></div>
+    <button class="btn btn-primary" id="f-btn" onclick="doForgotPassword()">Enviar link de redefinição</button>
+    <button class="login-link" onclick="showLoginScreen()">Voltar ao login</button>
+  </div>
+</div>
+
+<!-- NOVA SENHA (via link do e-mail) -->
+<div id="reset-pass-screen" class="login-wrap hidden">
+  <div class="login-card">
+    <div><div class="login-brand">Monitor Sindical ACAD</div><div class="login-sub">Escolha sua nova senha</div></div>
+    <div class="field"><label>Nova senha</label><input type="password" id="r-pass" placeholder="••••••••"></div>
+    <div class="field"><label>Confirmar nova senha</label><input type="password" id="r-pass2" placeholder="••••••••" onkeydown="if(event.key==='Enter')doUpdatePassword()"></div>
+    <div class="login-err" id="r-err"></div>
+    <button class="btn btn-primary" id="r-btn" onclick="doUpdatePassword()">Salvar nova senha</button>
   </div>
 </div>
 
@@ -738,8 +764,69 @@ async function doLogout(){
 }
 window.doLogout=doLogout;
 
+function showForgot(){
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('forgot-screen').classList.remove('hidden');
+}
+window.showForgot=showForgot;
+
+function showLoginScreen(){
+  document.getElementById('forgot-screen').classList.add('hidden');
+  document.getElementById('reset-pass-screen').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+}
+window.showLoginScreen=showLoginScreen;
+
+async function doForgotPassword(){
+  const email=document.getElementById('f-email').value.trim();
+  const errEl=document.getElementById('f-err');
+  const okEl=document.getElementById('f-ok');
+  errEl.style.display='none';okEl.style.display='none';
+  if(!email){errEl.textContent='Informe o e-mail.';errEl.style.display='block';return;}
+  document.getElementById('f-btn').innerHTML='<span class="spinner" style="border-top-color:var(--brand)"></span> Enviando...';
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://isabelapublicitaria-sys.github.io/Acad/admin.html'});
+  document.getElementById('f-btn').innerHTML='Enviar link de redefinição';
+  if(error){errEl.textContent='Não foi possível enviar o e-mail. Tente novamente.';errEl.style.display='block';return;}
+  okEl.textContent='Link enviado! Verifique seu e-mail (e a caixa de spam).';okEl.style.display='block';
+}
+window.doForgotPassword=doForgotPassword;
+
+async function doUpdatePassword(){
+  const pass=document.getElementById('r-pass').value;
+  const pass2=document.getElementById('r-pass2').value;
+  const errEl=document.getElementById('r-err');
+  errEl.style.display='none';
+  if(!pass||pass.length<6){errEl.textContent='A senha deve ter ao menos 6 caracteres.';errEl.style.display='block';return;}
+  if(pass!==pass2){errEl.textContent='As senhas não coincidem.';errEl.style.display='block';return;}
+  document.getElementById('r-btn').innerHTML='<span class="spinner" style="border-top-color:var(--brand)"></span> Salvando...';
+  const {error}=await sb.auth.updateUser({password:pass});
+  document.getElementById('r-btn').innerHTML='Salvar nova senha';
+  if(error){errEl.textContent='Não foi possível salvar. Peça um novo link de redefinição.';errEl.style.display='block';return;}
+  history.replaceState(null,'',window.location.pathname);
+  document.getElementById('reset-pass-screen').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+  alert('Senha atualizada! Faça login com a nova senha.');
+}
+window.doUpdatePassword=doUpdatePassword;
+
+// Link de redefinição de senha volta com #type=recovery na URL
+const isRecovery=window.location.hash.includes('type=recovery');
+if(isRecovery){
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('reset-pass-screen').classList.remove('hidden');
+}
+sb.auth.onAuthStateChange((event)=>{
+  if(event==='PASSWORD_RECOVERY'){
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('forgot-screen').classList.add('hidden');
+    document.getElementById('admin-panel').classList.add('hidden');
+    document.getElementById('reset-pass-screen').classList.remove('hidden');
+  }
+});
+
 // Verificar sessão existente
 sb.auth.getSession().then(({data:{session}})=>{
+  if(isRecovery)return;
   if(session){
     document.getElementById('user-email').textContent=session.user.email;
     document.getElementById('login-screen').classList.add('hidden');
